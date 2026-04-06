@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Panel de Sensores</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <h1>Sensores Disponibles</h1>
+        <ul id="lista-sensores">
+            </ul>
+        
+        <hr>
+        
+        <div id="monitor">
+            <h2>Mensajes de: <span id="sensor-seleccionado">Ninguno</span></h2>
+            <div id="mensajes-log"></div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
