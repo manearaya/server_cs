@@ -7,6 +7,9 @@ const app = express();
 
 app.use(express.static(path.join(__dirname, 'public')));
 
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 // 1. Conexión DB (Railway inyecta DATABASE_URL automáticamente)
 const db = new Client({ connectionString: process.env.DATABASE_URL });
