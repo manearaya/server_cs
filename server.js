@@ -12,8 +12,18 @@ app.get('/', (req, res) => {
 });
 
 // 1. Conexión DB (Railway inyecta DATABASE_URL automáticamente)
-const db = new Client({ connectionString: process.env.DATABASE_URL });
-db.connect();
+const db = new Client({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false } // OBLIGATORIO para Railway
+});
+
+
+db.connect()
+    .then(() => console.log(' DB Conectada'))
+    .catch(err => {
+        console.error(' Error crítico de DB:', err.message);
+        // NO matamos el proceso para que la web siga cargando
+    });
 
 // 2. Conexión HiveMQ
 const mqttClient = mqtt.connect(`mqtts://${process.env.MQTT_HOST}`, {
@@ -43,4 +53,17 @@ mqttClient.on('message', async (topic, message) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Servidor corriendo en el puerto ${PORT}`);
+});
+
+app.get('/api/historial', async (req, res) => {
+    try {
+        const result = await db.query('SELECT * FROM registros_sensores ORDER BY fecha_hora DESC LIMIT 50');
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/hola', (req, res) => {
+    res.send("<h1>Si ves esto, el servidor funciona. El problema es la carpeta public.</h1>");
 });
