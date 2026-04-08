@@ -54,7 +54,7 @@ mqttClient.on('message', async (topic, message) => {
     const data = JSON.parse(message.toString());
     const ahora = new Date().toISOString();
 
-    // --- CASO 1: Status del Receptor ---
+    // status receptor
     if (topic.includes('receptor') && topic.includes('status')) {
         await db.query(
             'UPDATE receptores SET bateria = $1, timestamp = $2 WHERE id = $3',
@@ -63,7 +63,7 @@ mqttClient.on('message', async (topic, message) => {
         io.emit('receptor', { id: data.id, bateria: data.bateria, timestamp: ahora });
     }
 
-    // --- CASO 2: Respuesta a Alerta (Receptor contesta) ---
+    // respuesta alerta del receptor
     if (topic.includes('receptor') && topic.includes('respuesta')) {
         // ASUMIENDO QUE EL EVENTO EXISTE Y EL RECEPTOR SABE EL ID DEL EVENTO
         const res = await db.query(
@@ -73,7 +73,7 @@ mqttClient.on('message', async (topic, message) => {
         io.emit('receptor', { id: data.id, bateria: data.bateria, timestamp: ahora });
         io.emit('evento', { id: data.id, t_respuesta: data.t_respuesta, timestamp: ahora , id_receptor: data.id_receptor, activa: 0});
         
-        // Si no existía (res.rowCount === 0), podríamos insertarlo completo aquí
+        // si no existe res.rowCount === 0
 
         if (res.rowCount === 0) {
                 await db.query(
@@ -83,16 +83,16 @@ mqttClient.on('message', async (topic, message) => {
         }
     }
 
-    // --- CASO 3: Status del Sensor (Cambio de Estado) ---
+    // status sensor
     if (topic.includes('sensor') && topic.includes('status')) {
-        // 1. Actualizar tabla sensores
+        // actualizar sensores
         await db.query(
             'UPDATE sensores SET estado = $1, bateria = $2, timestamp = $3 WHERE id = $4',
             [data.estado, data.bateria, ahora, data.id]
         );
         io.emit('sensor', { id: data.id, estado: data.estado, timestamp: ahora, bateria: data.bateria });
 
-        // 2. Si el estado es 2 (Intento), crear fila en Eventos
+        //  si el estado es intento crear fila en eventos
         if (data.estado === 2) {
             await db.query(
                 'INSERT INTO eventos (timestamp, activa, t_respuesta, id_receptor) VALUES ($1, 1, NULL, NULL)',
@@ -140,9 +140,7 @@ app.get('/api/receptores', async (req, res) => {
 
 
 
-
-
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Servidor OstheoGlove corriendo en puerto ${PORT}`);
+    console.log(`Servidor corriendo en puerto ${PORT}`);
 });
