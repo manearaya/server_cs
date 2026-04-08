@@ -8,6 +8,7 @@
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
       "Courier New", monospace;
     --color-red-50: oklch(97.1% 0.013 17.38);
+    --color-red-100: oklch(93.6% 0.032 17.717);
     --color-red-200: oklch(88.5% 0.062 18.334);
     --color-red-500: oklch(63.7% 0.237 25.331);
     --color-red-700: oklch(50.5% 0.213 27.518);
@@ -543,6 +544,9 @@
   .text-blue-900 {
     color: var(--color-blue-900);
   }
+  .text-gray-100 {
+    color: var(--color-gray-100);
+  }
   .text-gray-400 {
     color: var(--color-gray-400);
   }
@@ -572,6 +576,9 @@
   }
   .text-purple-900 {
     color: var(--color-purple-900);
+  }
+  .text-red-100 {
+    color: var(--color-red-100);
   }
   .text-red-500 {
     color: var(--color-red-500);

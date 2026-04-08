@@ -98,7 +98,7 @@ function poblarSensores(listaSensores){
 
                     <li class="flex justify-between">
                         <span class="font-medium">Estado:</span>
-                        <span class="font-semibold text-blue-600">${nombreEstado}</span>
+                        <span class="${dato.estado === 2 ? 'text-red-100 font-bold ' : dato.estado === 1 ? 'text-gray-100 font-semibold ' : 'text-blue-600 font-semibold '} ">${nombreEstado}</span>
                     </li>
 
                     <hr class="border-t border-gray-200 my-6">
