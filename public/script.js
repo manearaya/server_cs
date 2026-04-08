@@ -28,22 +28,31 @@
 //     });
 // }
 
-const misDatos = [
-    { id: "01", tipo: "sensor", estado: 1, activo: 0,  timestamp: "13:10", bateria: "10", habitacion: "9"},
-    { id: "02", tipo: "sensor", estado: 3, activo: 0,  timestamp: "13:12", bateria: "50", habitacion: "8"},
-    { id: "03", tipo: "sensor", estado: 2, activo: 1,  timestamp: "13:11", bateria: "70", habitacion: "7"},
-    { id: "11", tipo: "sensor", estado: 1, activo: 1,  timestamp: "13:10", bateria: "40", habitacion: "2"},
-    { id: "31", tipo: "sensor", estado: 2, activo: 1,  timestamp: "13:09", bateria: "67", habitacion: "1"},
-    { id: "07", tipo: "sensor", estado: 1, activo: 1,  timestamp: "13:10", bateria: "90", habitacion: "11"},
-    { id: "08", tipo: "sensor", estado: 3, activo: 1,  timestamp: "13:08", bateria: "45", habitacion: "12"},
-    { id: "11", tipo: "sensor", estado: 1, activo: 1,  timestamp: "13:10", bateria: "40", habitacion: "2"},
-    { id: "31", tipo: "sensor", estado: 2, activo: 1,  timestamp: "13:09", bateria: "67", habitacion: "1"},
-    { id: "07", tipo: "sensor", estado: 1, activo: 1,  timestamp: "13:10", bateria: "90", habitacion: "11"},
-    { id: "08", tipo: "sensor", estado: 3, activo: 1,  timestamp: "13:08", bateria: "45", habitacion: "12"}
+const listaSensores = [
+    { id: 1, estado: 1, activo: 0, timestamp: "2026-04-07T14:22:10", bateria: 10, habitacion: "9" },
+    { id: 2, estado: 3, activo: 0, timestamp: "2026-04-08T03:45:12", bateria: 50, habitacion: "8" },
+    { id: 3, estado: 2, activo: 1, timestamp: "2026-04-08T04:10:05", bateria: 70, habitacion: "7" },
+    { id: 11, estado: 1, activo: 1, timestamp: "2026-04-06T09:15:30", bateria: 40, habitacion: "25" },
+    { id: 31, estado: 2, activo: 1, timestamp: "2026-04-08T02:30:45", bateria: 67, habitacion: "1" },
+    { id: 5, estado: 1, activo: 1, timestamp: "2026-04-05T18:20:00", bateria: 90, habitacion: "11" },
+    { id: 83, estado: 3, activo: 1, timestamp: "2026-04-07T22:12:15", bateria: 45, habitacion: "12" },
+    { id: 15, estado: 1, activo: 1, timestamp: "2026-04-04T11:05:40", bateria: 40, habitacion: "2" },
+    { id: 34, estado: 2, activo: 1, timestamp: "2026-04-08T01:55:20", bateria: 67, habitacion: "1" },
+    { id: 7, estado: 1, activo: 1, timestamp: "2026-04-07T08:30:00", bateria: 90, habitacion: "11" },
+    { id: 8, estado: 3, activo: 1, timestamp: "2026-04-06T15:45:10", bateria: 45, habitacion: "12" }
 ];
 
+const listaReceptores = [
+    { id: 1, activo: 0, timestamp: "2026-04-08T00:10:00", bateria: 10 },
+    { id: 2, activo: 0, timestamp: "2026-04-07T19:30:22", bateria: 50 },
+    { id: 31, activo: 1, timestamp: "2026-04-08T04:05:00", bateria: 67 },
+    { id: 7, activo: 1, timestamp: "2026-04-06T12:00:00", bateria: 90 }
+];
+
+
+
 // 1. Conectamos: Buscamos el elemento por su ID
-const lista = document.getElementById('lista-sensores');
+const lista_sensores = document.getElementById('lista-sensores');
 
 const estadosDict = {
     1: "Desocupado",
@@ -51,16 +60,44 @@ const estadosDict = {
     3: "Ocupado"
 };
 
+const activoDict = {
+    0: "Desconectado",
+    1: "Activo"
+};
+
+const prioridadEstado = {
+    2: 1, // El estado 2 es la prioridad #1
+    1: 2, // El estado 1 es la prioridad #2
+    3: 3  // El estado 3 es la prioridad #3
+};
+
+listaSensores.sort((a, b) => {
+    // --- PRIORIDAD 1: Estado (2 > 1 > 3) ---
+    if (prioridadEstado[a.estado] !== prioridadEstado[b.estado]) {
+        return prioridadEstado[a.estado] - prioridadEstado[b.estado];
+    }
+
+    // --- PRIORIDAD 2: Activo (0 va primero) ---
+    // Si los estados son iguales, comparamos el campo 'activo'
+    if (a.activo !== b.activo) {
+        return a.activo - b.activo; // 0 viene antes que 1
+    }
+
+    // --- PRIORIDAD 3: Batería (Menor a mayor) ---
+    // Si el estado y el activo son iguales, ordenamos por batería
+    return a.bateria - b.bateria;
+});
+
 // 2. Construimos: Recorremos los datos y creamos el HTML
-misDatos.forEach(dato => {
+listaSensores.forEach(dato => {
     // agregarle if tipo = sensor
     // que cambie de color cuando esta inactivo y cuando 
     // 1. Obtenemos el texto del diccionario
     const nombreEstado = estadosDict[dato.estado] || "Desconocido";
 
     // 2. Inyectamos una tarjeta limpia
-    lista.innerHTML += `
-        <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+    lista_sensores.innerHTML += `
+        <div class="${dato.activo === 0 ? 'bg-yellow-100 ' : 'bg-white'} p-6 rounded-lg shadow-sm border border-gray-200">
             <h3 class="text-lg font-bold text-gray-900 mb-3">
                 Sensor ${dato.id}
             </h3>
@@ -87,46 +124,90 @@ misDatos.forEach(dato => {
 
 
 
-// function onMessage(message) {
-//     const topicParts = message.destinationName.split('/');
-//     const sensorId = topicParts[1];
+listaReceptores.sort((a, b) => {
+    // --- PRIORIDAD 2: Activo (0 va primero) ---
+    // Si los estados son iguales, comparamos el campo 'activo'
+    if (a.activo !== b.activo) {
+        return a.activo - b.activo; // 0 viene antes que 1
+    }
 
-//     if (!sensoresDetectados.has(sensorId)) {
-//         sensoresDetectados.add(sensorId);
-//         agregarBotonSensor(sensorId);
-//     }
+    // --- PRIORIDAD 3: Batería (Menor a mayor) ---
+    // Si el estado y el activo son iguales, ordenamos por batería
+    return a.bateria - b.bateria;
+});
 
-//     if (sensorId === sensorActual) {
-//         mostrarMensaje(message.payloadString);
-//     }
-// }
 
-// function mostrarMensaje(texto) {
-//     const log = document.getElementById("mensajes-log");
-//     const p = document.createElement("p");
-//     p.innerHTML = `<b>${new Date().toLocaleTimeString()}:</b> ${texto}`;
-//     log.prepend(p); // Pone el mensaje más nuevo arriba
-// }
+const lista_receptores = document.getElementById('lista-receptores');
+listaReceptores.forEach(dato => {
+    // agregarle if tipo = sensor
+    // que cambie de color cuando esta inactivo y cuando 
+    // 1. Obtenemos el texto del diccionario
+    const nombreActivo = activoDict[dato.activo] || "Desconocido";
 
-// function agregarBotonSensor(id) {
-//     const lista = document.getElementById("lista-sensores");
-//     const li = document.createElement("li");
-//     li.innerHTML = `<button onclick="seleccionarSensor('${id}')">Sensor: ${id}</button>`;
-//     lista.appendChild(li);
-// }
+    // 2. Inyectamos una tarjeta limpia
+    lista_receptores.innerHTML += `
+        <div class=" ${dato.activo === 0 ? 'bg-yellow-100 ' : 'bg-white'} p-6 rounded-lg shadow-sm border border-gray-200">
+            <h3 class="text-lg font-bold text-gray-900 mb-3">
+                Receptor ${dato.id}
+            </h3>
 
-// function seleccionarSensor(id) {
-//     sensorActual = id;
-//     document.getElementById("sensor-seleccionado").innerText = id;
-//     document.getElementById("mensajes-log").innerHTML = "<h3>Cargando historial de base de datos...</h3>";
-//     cargarHistorialFiltrado(id);
-// }
+            <ul class="space-y-2 text-sm text-gray-600">
 
-// // NUEVA FUNCIÓN: Traer datos desde el Servidor (Railway SQL)
-// async function cargarHistorial() {
-//     const res = await fetch('/api/historial');
-//     const datos = await res.json();
-//     console.log("Datos de la DB cargados:", datos);
-// }
+                <li class="flex justify-between">
+                    <span class="${dato.activo === 0 ? 'text-red-500 font-bold' : 'font-semibold text-blue-600'}
+                    font-semibold text-blue-600">${nombreActivo}</span>
+                </li>
+                <li class="flex justify-between">
+                    <span class="font-medium">Batería:</span>
+                    <span class="${dato.bateria < 20 ? 'text-red-500 font-bold' : ''}">
+                        ${dato.bateria}%
+                    </span>
+                </li>
+            </ul>
+        </div>
+    `;
+});
 
-// conectar();
+
+async function cargarHistorial() {
+    try {
+        // 1. Llamamos al servidor
+        const respuesta = await fetch('/api/historial');
+        
+        // 2. Convertimos la respuesta a un objeto JS
+        const historial = await respuesta.json();
+
+        // 3. Pasamos los datos a tu función de renderizado
+        poblarHistorial(historial);
+
+    } catch (error) {
+        console.error("Error conectando con el servidor:", error);
+    }
+}
+
+
+function poblarHistorial(historial) {
+    const contenedor = document.getElementById('lista-historial');
+    contenedor.innerHTML = ""; // Limpiar
+
+    // para dejar los mas nuevos arriba
+    historial.sort((a, b) => {
+        if (a.activo !== b.activo) {
+        return b.activo - a.activo; // 1 viene antes que 0
+    }
+    return new Date(b.timestamp) - new Date(a.timestamp);
+    });
+
+    historial.forEach(ev => {
+        const fecha = new Date(ev.timestamp).toLocaleString();
+        contenedor.innerHTML += `
+            <div class="p-3 border-b border-gray-100">
+                <p class="text-xs text-gray-400">${fecha}</p>
+                <p class="text-sm font-bold">Evento ID: ${ev.id}</p>
+                <p class="text-xs">${ev.activa ? '⚠️ Activa' : '✅ Resuelta'}</p>
+            </div>
+        `;
+    });
+}
+
+cargarHistorial();

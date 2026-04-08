@@ -50,20 +50,31 @@ mqttClient.on('message', async (topic, message) => {
     await db.query(query, values);
 });
 
+
+
+// app.get('/api/historial', async (req, res) => {
+//     try {
+//         const result = await db.query('SELECT * FROM registros_sensores ORDER BY fecha_hora DESC LIMIT 50');
+//         res.json(result.rows);
+//     } catch (err) {
+//         res.status(500).json({ error: err.message });
+//     }
+// });
+
+
+const listaEventos = [
+    { id: 1, timestamp: "2026-04-08T03:50:10", activa: 1, t_respuesta: null, id_receptor: null },
+    { id: 2, timestamp: "2026-04-07T14:20:05", activa: 0, t_respuesta: 3.6, id_receptor: 1 },
+    { id: 3, timestamp: "2026-04-06T08:10:00", activa: 0, t_respuesta: 8.7, id_receptor: 7 },
+    { id: 4, timestamp: "2026-04-05T20:15:30", activa: 0, t_respuesta: 5.0, id_receptor: 2 }
+];
+
+app.get('/api/historial', (req, res) => {
+    res.json(listaEventos); // Esto envía la lista como texto que el navegador entiende
+});
+
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Servidor corriendo en el puerto ${PORT}`);
-});
-
-app.get('/api/historial', async (req, res) => {
-    try {
-        const result = await db.query('SELECT * FROM registros_sensores ORDER BY fecha_hora DESC LIMIT 50');
-        res.json(result.rows);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-app.get('/hola', (req, res) => {
-    res.send("<h1>Si ves esto, el servidor funciona. El problema es la carpeta public.</h1>");
 });
