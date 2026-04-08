@@ -76,7 +76,7 @@ function poblarSensores(listaSensores){
     return a.bateria - b.bateria;
 });
 
-const lista_receptores = document.getElementById('lista-receptores');
+const lista_sensores = document.getElementById('lista-sensores');
 
 
 listaSensores.forEach(dato => {
@@ -86,7 +86,7 @@ listaSensores.forEach(dato => {
     const nombreEstado = estadosDict[dato.estado] || "Desconocido";
 
     // 2. Inyectamos una tarjeta limpia
-    lista_receptores.innerHTML += `
+    lista_sensores.innerHTML += `
         <div class="${dato.activo === 0 ? 'bg-yellow-100 ' : 'bg-white'} p-6 rounded-lg shadow-sm border border-gray-200">
             <h3 class="text-lg font-bold text-gray-900 mb-3">
                 Sensor ${dato.id}
