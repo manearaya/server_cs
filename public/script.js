@@ -87,6 +87,7 @@ function poblarSensores(listaSensores){
                 <h3 class="text-lg font-bold text-gray-900 mb-3">
                     Sensor ${dato.id}
                 </h3>
+                <hr class="border-t border-gray-400 my-6">
 
                 <ul class="space-y-2 text-base text-gray-600">
                     <li class="flex justify-between">
@@ -94,14 +95,14 @@ function poblarSensores(listaSensores){
                         <span>${dato.habitacion}</span>
                     </li>
 
-                    <hr class="border-t border-gray-200 my-6">
+                    <hr class="border-t border-gray-400 my-6">
 
                     <li class="flex justify-between">
                         <span class="font-medium">Estado:</span>
                         <span class="${dato.estado === 2 ? 'text-red-900 font-bold ' : dato.estado === 1 ? 'text-gray-900 font-semibold ' : 'text-blue-600 font-semibold '} ">${nombreEstado}</span>
                     </li>
 
-                    <hr class="border-t border-gray-200 my-6">
+                    <hr class="border-t border-gray-400 my-6">
 
 
                     <li class="flex justify-between">
@@ -157,11 +158,13 @@ function poblarReceptores(listaReceptores) {
                 </h3>
 
                 <ul class="space-y-2 text-base text-gray-600">
+                <hr class="border-t border-gray-400 my-6">
 
                     <li class="flex justify-between">
                         <span class="${dato.activo === 0 ? 'text-red-500 font-bold' : 'font-semibold text-blue-600'}
                         font-semibold text-blue-600">${nombreActivo}</span>
                     </li>
+                    <hr class="border-t border-gray-400 my-6">
                     <li class="flex justify-between">
                         <span class="font-medium">Batería:</span>
                         <span class="${dato.bateria < 20 ? 'text-red-500 font-bold' : ''}">
@@ -361,13 +364,13 @@ function renderizarEstadisticas(idDiv, eventos) {
         </div>
 
         <div class="bg-green-50 p-6 rounded-xl border border-green-100 text-center">
-                <p class="text-xs font-bold text-green-600 uppercase tracking-wider">Tiempo de atención promedio:</p>
-            <p class="text-3xl font-black text-green-900">${promedio} s</p>
+                <p class="text-xs font-bold text-blue-600 uppercase tracking-wider">Tiempo de atención promedio:</p>
+            <p class="text-3xl font-black text-blue-900">${promedio} s</p>
         </div>
 
         <div class="bg-purple-50 p-6 rounded-xl border border-purple-100 text-center">
-        <p class="text-xs font-bold text-purple-600 uppercase tracking-wider">Horario con más eventos históricamente:</p>
-            <p class="text-3xl font-black text-purple-900">${horaPeak}</p>
+        <p class="text-xs font-bold text-blue-600 uppercase tracking-wider">Horario con más eventos históricamente:</p>
+            <p class="text-3xl font-black text-blue-900">${horaPeak}</p>
         </div>
 
     </div>
