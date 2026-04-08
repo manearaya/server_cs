@@ -189,25 +189,57 @@ async function cargarHistorial() {
 }
 
 
+// function poblarHistorial(historial) {
+//     const contenedor = document.getElementById('lista-historial');
+//     contenedor.innerHTML = ""; // Limpiar
+
+//     // para dejar los mas nuevos arriba
+//     historial.sort((a, b) => {
+//         if (a.activo !== b.activo) {
+//         return b.activo - a.activo; // 1 viene antes que 0
+//     }
+//     return new Date(b.timestamp) - new Date(a.timestamp);
+//     });
+
+//     historial.forEach(ev => {
+//         const fecha = new Date(ev.timestamp).toLocaleString();
+//         contenedor.innerHTML += `
+//             <div class="p-3 border-b border-gray-100">
+//                 <p class="text-xs text-gray-400">${fecha}</p>
+//                 <p class="text-sm font-bold">Evento ID: ${ev.id}</p>
+//                 <p class="text-xs">${ev.activa ? '⚠️ Activa' : '✅ Resuelta'}</p>
+//             </div>
+//         `;
+//     });
+// }
+
 function poblarHistorial(historial) {
     const contenedor = document.getElementById('lista-historial');
-    contenedor.innerHTML = ""; // Limpiar
+    if (!contenedor) return;
+    
+    contenedor.innerHTML = ""; 
 
-    // para dejar los mas nuevos arriba
-    historial.sort((a, b) => {
-        if (a.activo !== b.activo) {
-        return b.activo - a.activo; // 1 viene antes que 0
-    }
-    return new Date(b.timestamp) - new Date(a.timestamp);
-    });
+    // Ordenar: Nuevos arriba
+    historial.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
     historial.forEach(ev => {
-        const fecha = new Date(ev.timestamp).toLocaleString();
+        const fecha = new Date(ev.timestamp).toLocaleString('es-CL');
+        const esAlerta = ev.activa === 1;
+
         contenedor.innerHTML += `
-            <div class="p-3 border-b border-gray-100">
-                <p class="text-xs text-gray-400">${fecha}</p>
-                <p class="text-sm font-bold">Evento ID: ${ev.id}</p>
-                <p class="text-xs">${ev.activa ? '⚠️ Activa' : '✅ Resuelta'}</p>
+            <div class="flex items-center justify-between p-3 rounded-lg ${esAlerta ? 'bg-red-50' : 'bg-gray-50'} border border-transparent hover:border-gray-200 transition-all">
+                <div class="flex flex-col">
+                    <span class="text-xs font-mono text-gray-500">${fecha}</span>
+                    <span class="text-sm font-semibold text-gray-800">Evento #${ev.id}</span>
+                </div>
+                <div class="flex items-center gap-4">
+                    <span class="text-xs font-medium text-gray-600">
+                        ${ev.t_respuesta ? `⏱️ ${ev.t_respuesta}m` : ''}
+                    </span>
+                    <span class="px-2 py-1 rounded text-[10px] font-bold uppercase ${esAlerta ? 'bg-red-200 text-red-700 animate-pulse' : 'bg-green-200 text-green-700'}">
+                        ${esAlerta ? 'Pendiente' : 'Resuelto'}
+                    </span>
+                </div>
             </div>
         `;
     });
