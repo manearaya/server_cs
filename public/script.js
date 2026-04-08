@@ -342,40 +342,24 @@ function renderizarEstadisticas(idDiv, eventos) {
         }
     }
 
-    // pal html
-        // <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        //     <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 text-center">
-        //         <p class="text-xs font-bold text-blue-600 uppercase tracking-wider">Eventos Hoy</p>
-        //         <p class="text-3xl font-black text-blue-900">${eventosHoy}</p>
-        //     </div>
-            
-        //     <div class="bg-green-50 p-4 rounded-xl border border-green-100 text-center">
-        //         <p class="text-xs font-bold text-green-600 uppercase tracking-wider">Promedio Respuesta</p>
-        //         <p class="text-3xl font-black text-green-900">${promedio} <span class="text-sm font-normal">min</span></p>
-        //     </div>
 
-        //     <div class="bg-purple-50 p-4 rounded-xl border border-purple-100 text-center">
-        //         <p class="text-xs font-bold text-purple-600 uppercase tracking-wider">Hora de Mayor Riesgo</p>
-        //         <p class="text-xl font-black text-purple-900">${horaPico}</p>
-        //     </div>
-        // </div>
 
     contenedor.innerHTML = `
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         
         <div class="bg-blue-50 p-6 rounded-xl border border-blue-100 text-center">
-            <p class="text-xs font-bold text-blue-600 uppercase tracking-wider">Eventos Hoy</p>
+            <p class="text-xs font-bold text-blue-600 uppercase tracking-wider">Eventos registrados hoy:</p>
             <p class="text-3xl font-black text-blue-900">${eventosHoy}</p>
         </div>
 
         <div class="bg-green-50 p-6 rounded-xl border border-green-100 text-center">
-            <p class="text-xs font-bold text-green-600 uppercase tracking-wider">Promedio Respuesta</p>
-            <p class="text-3xl font-black text-green-900">${promedio} min</p>
+                <p class="text-xs font-bold text-green-600 uppercase tracking-wider">Tiempo de atención promedio:</p>
+            <p class="text-3xl font-black text-green-900">${promedio} s</p>
         </div>
 
         <div class="bg-purple-50 p-6 rounded-xl border border-purple-100 text-center">
-            <p class="text-xs font-bold text-purple-600 uppercase tracking-wider">Hora Pico</p>
+        <p class="text-xs font-bold text-purple-600 uppercase tracking-wider">Horario con más eventos históricamente:</p>
             <p class="text-3xl font-black text-purple-900">${horaPeak}</p>
         </div>
 
