@@ -204,6 +204,9 @@
   .mx-auto {
     margin-inline: auto;
   }
+  .mt-6 {
+    margin-top: calc(var(--spacing) * 6);
+  }
   .mb-3 {
     margin-bottom: calc(var(--spacing) * 3);
   }
@@ -219,8 +222,14 @@
   .table {
     display: table;
   }
+  .h-64 {
+    height: calc(var(--spacing) * 64);
+  }
   .h-96 {
     height: calc(var(--spacing) * 96);
+  }
+  .w-full {
+    width: 100%;
   }
   .max-w-3xl {
     max-width: var(--container-3xl);

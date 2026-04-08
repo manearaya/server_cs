@@ -179,9 +179,11 @@ async function cargarHistorial() {
 
         // 3. Pasamos los datos a tu función de renderizado
         poblarHistorial(historial);
+        crearGraficoHistorico(historial) 
 
     } catch (error) {
         console.error("Error conectando con el servidor:", error);
+
     }
 }
 
@@ -211,3 +213,66 @@ function poblarHistorial(historial) {
 }
 
 cargarHistorial();
+
+
+function procesarEventosPorDia(eventos) {
+    const conteoPorDia = {};
+
+    // 1. Contar eventos por fecha (YYYY-MM-DD)
+    eventos.forEach(ev => {
+        // Extraemos solo la parte de la fecha: "2026-04-08"
+        const fecha = ev.timestamp.split('T')[0]; 
+        conteoPorDia[fecha] = (conteoPorDia[fecha] || 0) + 1;
+    });
+
+    // 2. Obtener los últimos 7 días (para asegurar que el gráfico tenga orden y días vacíos)
+    const etiquetas = [];
+    const valores = [];
+    
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const fechaIso = d.toISOString().split('T')[0];
+        
+        // Usamos la fecha como etiqueta y buscamos el valor en nuestro conteo
+        etiquetas.push(fechaIso);
+        valores.push(conteoPorDia[fechaIso] || 0); // Si no hay eventos, ponemos 0
+    }
+
+    return { etiquetas, valores };
+}
+
+
+
+function crearGraficoHistorico(eventos) {
+    const ctx = document.getElementById('graficoEventos').getContext('2d');
+    const datosProcesados = procesarEventosPorDia(eventos);
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: datosProcesados.etiquetas,
+            datasets: [{
+                label: 'Cantidad de Eventos',
+                data: datosProcesados.valores,
+                backgroundColor: 'rgba(59, 130, 246, 0.5)', // Azul Tailwind con opacidad
+                borderColor: '#3b82f6',
+                borderWidth: 2,
+                borderRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { stepSize: 1 } // Para que no salgan decimales en la cuenta
+                }
+            },
+            plugins: {
+                legend: { display: false } // Quitamos la leyenda para que se vea más limpio
+            }
+        }
+    });
+}
