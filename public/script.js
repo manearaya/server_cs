@@ -315,7 +315,7 @@ function poblarHistorial(historial) {
                 </div>
                 <div class="flex items-center gap-4">
                     <span class="text-xs font-medium text-gray-600">
-                        ${dato.t_respuesta ? `⏱️ ${dato.t_respuesta}m` : ''}
+                        ${dato.t_respuesta ? `Respuesta en:  ${dato.t_respuesta}s` : ''}
                     </span>
                     <span class="px-2 py-1 rounded text-[10px] font-bold uppercase ${esAlerta ? 'bg-red-200 text-red-700 animate-pulse' : 'bg-green-200 text-green-700'}">
                         ${esAlerta ? 'Pendiente' : 'Resuelto'}
