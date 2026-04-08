@@ -138,6 +138,6 @@ app.get('/api/receptores', async (req, res) => {
 
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Servidor corriendo en el puerto ${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Servidor OstheoGlove corriendo en puerto ${PORT}`);
 });
