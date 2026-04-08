@@ -5,48 +5,37 @@ const socket = io();
 
 socket.on('sensor', (datos) => {
     console.log("Dato recibido por Socket:", datos);
-
+    // id de la tarjeta en html: card-sensor-id
+    // io.emit('sensor', { id: data.id, estado: data.estado, timestamp: ahora, bateria: data.bateria });
+    // actualizar datos 
 
 });
 
 
 socket.on('receptor', (datos) => {
     console.log("Dato recibido por Socket:", datos);
-    // card-receptor-id
-    
-    // OPCIÓN A: La forma floja (pero segura)
-    // Simplemente vuelve a llamar a tu función que trae todo de la DB
-    //cargarDashboardCompleto(); 
-
-    // OPCIÓN B: La forma pro (actualizar solo esa tarjeta)
-    // buscarTarjetaPorId(datos.id).actualizar(datos.estado);
+    // id de la tarjeta en html: card-receptor-id
+    // io.emit('receptor', { id: data.id, bateria: data.bateria, timestamp: ahora });
+    // actualizar datos 
 });
 
 
 socket.on('evento', (datos) => {
     console.log("Dato recibido por Socket:", datos);
     // card-evento-id
-    
-    // OPCIÓN A: La forma floja (pero segura)
-    // Simplemente vuelve a llamar a tu función que trae todo de la DB
-    //cargarDashboardCompleto(); 
-
-    // OPCIÓN B: La forma pro (actualizar solo esa tarjeta)
-    // buscarTarjetaPorId(datos.id).actualizar(datos.estado);
+    // io.emit('evento', { id: data.id, t_respuesta: data.t_respuesta, timestamp: ahora , id_receptor: data.id_receptor, activa: 0});
+  // por mientras cargar todo el historial
     cargarHistorial()
 });
 
 ////////////// SENSORES ////////////////////
 async function cargarSensores() {
     try {
-        // 1. Llamamos al servidor
         const respuesta = await fetch('/api/sensores');
-        // 2. Convertimos la respuesta a un objeto JS
         const listaSensores = await respuesta.json();
-        // 3. Pasamos los datos a tu función de renderizado
         poblarSensores(listaSensores)
     } catch (error) {
-        console.error("Error conectando con el servidor:", error);
+        console.error("Error conectando con servidor:", error);
     }
 }
 
@@ -90,7 +79,7 @@ function poblarSensores(listaSensores){
         // agregarle if tipo = sensor
         // que cambie de color cuando esta inactivo y cuando 
         // 1. Obtenemos el texto del diccionario
-        const nombreEstado = estadosDict[dato.estado] || "Desconocido";
+        const nombreEstado = estadosDict[dato.estado];
 
         // 2. Inyectamos una tarjeta limpia
         lista_sensores.innerHTML += `
@@ -123,14 +112,11 @@ function poblarSensores(listaSensores){
 
 async function cargarReceptores() {
     try {
-        // 1. Llamamos al servidor
         const respuesta = await fetch('/api/receptores');
-        // 2. Convertimos la respuesta a un objeto JS
         const listaReceptores = await respuesta.json();
-        // 3. Pasamos los datos a tu función de renderizado
         poblarReceptores(listaReceptores)
     } catch (error) {
-        console.error("Error conectando con el servidor:", error);
+        console.error("Error conectando con servidor:", error);
     }
 }
 
@@ -154,10 +140,9 @@ function poblarReceptores(listaReceptores) {
     listaReceptores.forEach(dato => {
         // agregarle if tipo = sensor
         // que cambie de color cuando esta inactivo y cuando 
-        // 1. Obtenemos el texto del diccionario
         const nombreActivo = activoDict[dato.activo] || "Desconocido";
 
-        // 2. Inyectamos una tarjeta limpia
+        //tarjeta
         lista_receptores.innerHTML += `
             <div id="card-receptor-${dato.id}" class=" ${dato.activo === 0 ? 'bg-yellow-100 ' : 'bg-white'} p-6 rounded-lg shadow-sm border border-gray-200">
                 <h3 class="text-lg font-bold text-gray-900 mb-3">
@@ -186,113 +171,25 @@ function poblarReceptores(listaReceptores) {
 
 
 
-// const listaReceptores = [
-//     { id: 1, activo: 0, timestamp: "2026-04-08T00:10:00", bateria: 10 },
-//     { id: 2, activo: 0, timestamp: "2026-04-07T19:30:22", bateria: 50 },
-//     { id: 31, activo: 1, timestamp: "2026-04-08T04:05:00", bateria: 67 },
-//     { id: 7, activo: 1, timestamp: "2026-04-06T12:00:00", bateria: 90 }
-// ];
 
-
-
-
-
-// const activoDict = {
-//     0: "Desconectado",
-//     1: "Activo"
-// };
-
-
-
-
-// listaReceptores.sort((a, b) => {
-//     // --- PRIORIDAD 2: Activo (0 va primero) ---
-//     // Si los estados son iguales, comparamos el campo 'activo'
-//     if (a.activo !== b.activo) {
-//         return a.activo - b.activo; // 0 viene antes que 1
-//     }
-
-//     // --- PRIORIDAD 3: Batería (Menor a mayor) ---
-//     // Si el estado y el activo son iguales, ordenamos por batería
-//     return a.bateria - b.bateria;
-// });
-
-
-// const lista_receptores = document.getElementById('lista-receptores');
-// listaReceptores.forEach(dato => {
-//     // agregarle if tipo = sensor
-//     // que cambie de color cuando esta inactivo y cuando 
-//     // 1. Obtenemos el texto del diccionario
-//     const nombreActivo = activoDict[dato.activo] || "Desconocido";
-
-//     // 2. Inyectamos una tarjeta limpia
-//     lista_receptores.innerHTML += `
-//         <div class=" ${dato.activo === 0 ? 'bg-yellow-100 ' : 'bg-white'} p-6 rounded-lg shadow-sm border border-gray-200">
-//             <h3 class="text-lg font-bold text-gray-900 mb-3">
-//                 Receptor ${dato.id}
-//             </h3>
-
-//             <ul class="space-y-2 text-sm text-gray-600">
-
-//                 <li class="flex justify-between">
-//                     <span class="${dato.activo === 0 ? 'text-red-500 font-bold' : 'font-semibold text-blue-600'}
-//                     font-semibold text-blue-600">${nombreActivo}</span>
-//                 </li>
-//                 <li class="flex justify-between">
-//                     <span class="font-medium">Batería:</span>
-//                     <span class="${dato.bateria < 20 ? 'text-red-500 font-bold' : ''}">
-//                         ${dato.bateria}%
-//                     </span>
-//                 </li>
-//             </ul>
-//         </div>
-//     `;
-// });
 
 
 async function cargarHistorial() {
     try {
-        // 1. Llamamos al servidor
         const respuesta = await fetch('/api/historial');
-        
-        // 2. Convertimos la respuesta a un objeto JS
         const historial = await respuesta.json();
-
-        // 3. Pasamos los datos a tu función de renderizado
         poblarHistorial(historial);
         crearGraficoHistorico(historial) 
         renderizarEstadisticas("indicadores-rapidos", historial)
 
     } catch (error) {
-        console.error("Error conectando con el servidor:", error);
+        console.error("Error conectando con servidor:", error);
 
     }
 }
 
 
-// function poblarHistorial(historial) {
-//     const contenedor = document.getElementById('lista-historial');
-//     contenedor.innerHTML = ""; // Limpiar
 
-//     // para dejar los mas nuevos arriba
-//     historial.sort((a, b) => {
-//         if (a.activo !== b.activo) {
-//         return b.activo - a.activo; // 1 viene antes que 0
-//     }
-//     return new Date(b.timestamp) - new Date(a.timestamp);
-//     });
-
-//     historial.forEach(ev => {
-//         const fecha = new Date(ev.timestamp).toLocaleString();
-//         contenedor.innerHTML += `
-//             <div class="p-3 border-b border-gray-100">
-//                 <p class="text-xs text-gray-400">${fecha}</p>
-//                 <p class="text-sm font-bold">Evento ID: ${ev.id}</p>
-//                 <p class="text-xs">${ev.activa ? '⚠️ Activa' : '✅ Resuelta'}</p>
-//             </div>
-//         `;
-//     });
-// }
 
 function poblarHistorial(historial) {
     const contenedor = document.getElementById('lista-historial');
@@ -300,7 +197,7 @@ function poblarHistorial(historial) {
     
     contenedor.innerHTML = ""; 
 
-    // Ordenar: Nuevos arriba
+    // Ordenar: nuevos arriba
     historial.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
     historial.forEach(dato => {
@@ -332,9 +229,8 @@ function poblarHistorial(historial) {
 function procesarEventosPorDia(eventos) {
     const conteoPorDia = {};
     const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0); // Normalizamos a medianoche para comparar solo fechas
+    hoy.setHours(0, 0, 0, 0); 
 
-    // 1. Agrupar eventos por fecha ISO (YYYY-MM-DD)
     eventos.forEach(ev => {
         if (ev.timestamp) {
             const fechaISO = ev.timestamp.split('T')[0];
@@ -345,7 +241,6 @@ function procesarEventosPorDia(eventos) {
     const etiquetas = [];
     const valores = [];
     
-    // 2. Generar etiquetas para los últimos 7 días
     for (let i = 6; i >= 0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
@@ -353,15 +248,13 @@ function procesarEventosPorDia(eventos) {
 
         const isoFecha = d.toISOString().split('T')[0];
         
-        // --- Lógica de Nombres de Días ---
         let nombreDia;
         
         if (d.getTime() === hoy.getTime()) {
             nombreDia = "Hoy";
         } else {
-            // Obtenemos el nombre del día (lunes, martes...) en español
+
             nombreDia = d.toLocaleDateString('es-CL', { weekday: 'long' });
-            // Capitalizamos la primera letra (opcional)
             nombreDia = nombreDia.charAt(0).toUpperCase() + nombreDia.slice(1);
         }
         
@@ -382,7 +275,7 @@ function crearGraficoHistorico(eventos) {
     const ctx = canvas.getContext('2d');
     const datos = procesarEventosPorDia(eventos);
 
-    // Si ya existe un gráfico, lo borramos para refrescar datos
+    // si ya existe se borra para refrescar datos
     if (miGrafico) {
         miGrafico.destroy();
     }
@@ -394,7 +287,7 @@ function crearGraficoHistorico(eventos) {
             datasets: [{
                 label: 'Intentos de levantarse',
                 data: datos.valores,
-                backgroundColor: '#3b82f6', // Azul Tailwind
+                //backgroundColor: '#3b82f6',
                 borderRadius: 4
             }]
         },
@@ -405,7 +298,7 @@ function crearGraficoHistorico(eventos) {
                 y: {
                     beginAtZero: true,
                     ticks: {
-                        stepSize: 1, // Solo números enteros
+                        stepSize: 1,
                         precision: 0
                     }
                 }
