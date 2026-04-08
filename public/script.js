@@ -286,9 +286,9 @@ function crearGraficoHistorico(eventos) {
             labels: datos.etiquetas,
             datasets: [{
                 label: 'Intentos de levantarse',
-                data: datos.valores,
+                data: datos.valores
                 //backgroundColor: '#3b82f6',
-                borderRadius: 4
+                //borderRadius: 4
             }]
         },
         options: {
