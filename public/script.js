@@ -331,33 +331,42 @@ function poblarHistorial(historial) {
 
 function procesarEventosPorDia(eventos) {
     const conteoPorDia = {};
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0); // Normalizamos a medianoche para comparar solo fechas
 
-    // 1. Agrupar. Usamos un bloque try/catch por si algún timestamp viene mal
+    // 1. Agrupar eventos por fecha ISO (YYYY-MM-DD)
     eventos.forEach(ev => {
-        try {
-            if (ev.timestamp) {
-                const fecha = ev.timestamp.split('T')[0];
-                conteoPorDia[fecha] = (conteoPorDia[fecha] || 0) + 1;
-            }
-        } catch (e) {
-            console.error("Error procesando timestamp:", ev);
+        if (ev.timestamp) {
+            const fechaISO = ev.timestamp.split('T')[0];
+            conteoPorDia[fechaISO] = (conteoPorDia[fechaISO] || 0) + 1;
         }
     });
 
     const etiquetas = [];
     const valores = [];
     
-    // 2. Generar últimos 7 días terminando en HOY (8 de abril)
+    // 2. Generar etiquetas para los últimos 7 días
     for (let i = 6; i >= 0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
+        d.setHours(0, 0, 0, 0);
+
         const isoFecha = d.toISOString().split('T')[0];
         
-        // Formato más humano para el eje X (ej: "08/04")
-        const diaMes = `${d.getDate()}/${d.getMonth() + 1}`;
+        // --- Lógica de Nombres de Días ---
+        let nombreDia;
         
-        etiquetas.push(diaMes);
-        valores.push(conteoPorDia[isoFecha] || 0); // Maneja días sin eventos
+        if (d.getTime() === hoy.getTime()) {
+            nombreDia = "Hoy";
+        } else {
+            // Obtenemos el nombre del día (lunes, martes...) en español
+            nombreDia = d.toLocaleDateString('es-CL', { weekday: 'long' });
+            // Capitalizamos la primera letra (opcional)
+            nombreDia = nombreDia.charAt(0).toUpperCase() + nombreDia.slice(1);
+        }
+        
+        etiquetas.push(nombreDia);
+        valores.push(conteoPorDia[isoFecha] || 0);
     }
 
     return { etiquetas, valores };
