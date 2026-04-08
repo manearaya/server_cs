@@ -28,6 +28,76 @@
 //     });
 // }
 
+
+const socket = io();
+
+
+socket.on('sensor', (datos) => {
+    console.log("Dato recibido por Socket:", datos);
+
+    // card-sensor-id
+    
+// // 1. Intentamos encontrar la tarjeta en el DOM
+//     const tarjeta = document.getElementById(`card-sensor-${datos.id}`);
+
+//     if (tarjeta) {
+//         // 2. Actualizar el texto del estado
+//         const labelEstado = tarjeta.querySelector('.status-text');
+//         if (labelEstado) {
+//             labelEstado.innerText = estadosDict[datos.estado];
+//         }
+
+//         // 3. Actualizar la batería (si el socket trae ese dato)
+//         if (datos.bateria !== undefined) {
+//             const labelBateria = tarjeta.querySelector('.battery-text');
+//             labelBateria.innerText = `${datos.bateria}%`;
+//         }
+
+//         // 4. Feedback visual: Un pequeño "destello" para notar el cambio
+//         tarjeta.classList.add('ring-2', 'ring-blue-400');
+//         setTimeout(() => {
+//             tarjeta.classList.remove('ring-2', 'ring-blue-400');
+//         }, 2000);
+
+//         // 5. Si el estado es 2 (Intento), podrías cambiar el color de fondo a rojo suave
+//         if (datos.estado === 2) {
+//             tarjeta.classList.replace('bg-white', 'bg-red-50');
+//         } else {
+//             tarjeta.classList.replace('bg-red-50', 'bg-white');
+//         }
+//     } else {
+//         // Si la tarjeta no existe (un sensor nuevo), ahí sí refrescamos todo
+//        cargarSensores();
+//     }
+});
+
+
+socket.on('receptor', (datos) => {
+    console.log("Dato recibido por Socket:", datos);
+    // card-receptor-id
+    
+    // OPCIÓN A: La forma floja (pero segura)
+    // Simplemente vuelve a llamar a tu función que trae todo de la DB
+    //cargarDashboardCompleto(); 
+
+    // OPCIÓN B: La forma pro (actualizar solo esa tarjeta)
+    // buscarTarjetaPorId(datos.id).actualizar(datos.estado);
+});
+
+
+socket.on('evento', (datos) => {
+    console.log("Dato recibido por Socket:", datos);
+    // card-evento-id
+    
+    // OPCIÓN A: La forma floja (pero segura)
+    // Simplemente vuelve a llamar a tu función que trae todo de la DB
+    //cargarDashboardCompleto(); 
+
+    // OPCIÓN B: La forma pro (actualizar solo esa tarjeta)
+    // buscarTarjetaPorId(datos.id).actualizar(datos.estado);
+    cargarHistorial()
+});
+
 ////////////// SENSORES ////////////////////
 async function cargarSensores() {
     try {
@@ -86,7 +156,7 @@ function poblarSensores(listaSensores){
 
         // 2. Inyectamos una tarjeta limpia
         lista_sensores.innerHTML += `
-            <div class="${dato.activo === 0 ? 'bg-yellow-100 ' : 'bg-white'} p-6 rounded-lg shadow-sm border border-gray-200">
+            <div id="card-sensor-${dato.id}" class="${dato.activo === 0 ? 'bg-yellow-100 ' : 'bg-white'} p-6 rounded-lg shadow-sm border border-gray-200">
                 <h3 class="text-lg font-bold text-gray-900 mb-3">
                     Sensor ${dato.id}
                 </h3>
@@ -151,7 +221,7 @@ function poblarReceptores(listaReceptores) {
 
         // 2. Inyectamos una tarjeta limpia
         lista_receptores.innerHTML += `
-            <div class=" ${dato.activo === 0 ? 'bg-yellow-100 ' : 'bg-white'} p-6 rounded-lg shadow-sm border border-gray-200">
+            <div id="card-receptor-${dato.id}" class=" ${dato.activo === 0 ? 'bg-yellow-100 ' : 'bg-white'} p-6 rounded-lg shadow-sm border border-gray-200">
                 <h3 class="text-lg font-bold text-gray-900 mb-3">
                     Receptor ${dato.id}
                 </h3>
@@ -300,7 +370,7 @@ function poblarHistorial(historial) {
         const esAlerta = ev.activa === 1;
 
         contenedor.innerHTML += `
-            <div class="flex items-center justify-between p-3 rounded-lg ${esAlerta ? 'bg-red-50' : 'bg-gray-50'} border border-transparent hover:border-gray-200 transition-all">
+            <div id="card-historial-${dato.id}" class="flex items-center justify-between p-3 rounded-lg ${esAlerta ? 'bg-red-50' : 'bg-gray-50'} border border-transparent hover:border-gray-200 transition-all">
                 <div class="flex flex-col">
                     <span class="text-xs font-mono text-gray-500">${fecha}</span>
                     <span class="text-sm font-semibold text-gray-800">Evento #${ev.id}</span>
