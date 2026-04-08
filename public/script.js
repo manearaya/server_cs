@@ -41,9 +41,9 @@ async function cargarSensores() {
 
 function poblarSensores(listaSensores){
     const estadosDict = {
-        1: "Desocupado",
-        2: "Intento",
-        3: "Ocupado"
+        1: "Cama desocupada",
+        2: "Riesgo de caída",
+        3: "Cama ocupada"
     };
 
     const activoDict = {
@@ -83,7 +83,7 @@ function poblarSensores(listaSensores){
 
         // 2. Inyectamos una tarjeta limpia
         lista_sensores.innerHTML += `
-            <div id="card-sensor-${dato.id}" class="${dato.activo === 0 ? 'bg-yellow-100 ' : 'bg-white'} p-6 rounded-lg shadow-sm border border-gray-200">
+            <div id="card-sensor-${dato.id}" class="${dato.estado === 2 ? 'bg-pink-100 ' : dato.activo === 0 ? 'bg-gray-100 ' : 'bg-white'} p-6 rounded-lg shadow-sm border border-gray-200">
                 <h3 class="text-lg font-bold text-gray-900 mb-3">
                     Sensor ${dato.id}
                 </h3>
@@ -93,11 +93,17 @@ function poblarSensores(listaSensores){
                         <span class="font-medium">Habitación:</span>
                         <span>${dato.habitacion}</span>
                     </li>
+
                     <hr class="border-t border-gray-200 my-6">
+
                     <li class="flex justify-between">
                         <span class="font-medium">Estado:</span>
                         <span class="font-semibold text-blue-600">${nombreEstado}</span>
                     </li>
+
+                    <hr class="border-t border-gray-200 my-6">
+
+
                     <li class="flex justify-between">
                         <span class="font-medium">Batería:</span>
                         <span class="${dato.bateria < 20 ? 'text-red-500 font-bold' : ''}">
