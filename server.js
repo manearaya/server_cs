@@ -1,31 +1,31 @@
 const mqtt = require('mqtt');
 const { Client } = require('pg');
-const express = require('express');
+const express = require('express'); 
 const path = require('path');
 const app = express();
 
 
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Para que pesque el index dentro de la carpeta
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// 1. Conexión DB (Railway inyecta DATABASE_URL automáticamente)
+// CONEXIÓN DB
 const db = new Client({
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false } // OBLIGATORIO para Railway
+    ssl: { rejectUnauthorized: false } 
 });
 
-
+// accion de contectar
 db.connect()
     .then(() => console.log(' DB Conectada'))
     .catch(err => {
         console.error(' Error crítico de DB:', err.message);
-        // NO matamos el proceso para que la web siga cargando
     });
 
-// 2. Conexión HiveMQ
+// MQTT////////////////////////////////////////////////////////////
 const mqttClient = mqtt.connect(`mqtts://${process.env.MQTT_HOST}`, {
     port: 8883,
     username: process.env.MQTT_USER,
@@ -47,59 +47,26 @@ mqttClient.on('message', async (topic, message) => {
     // Si es status, guardamos en 'estado'; si es data, en 'valor'
     const values = [sensorId, (tipo === 'status' ? contenido : null), (tipo === 'data' ? contenido : null)];
     
-    await db.query(query, values);
+    // await db.query(query, values);
 });
 
 
 
-// app.get('/api/historial', async (req, res) => {
-//     try {
-//         const result = await db.query('SELECT * FROM registros_sensores ORDER BY fecha_hora DESC LIMIT 50');
-//         res.json(result.rows);
-//     } catch (err) {
-//         res.status(500).json({ error: err.message });
-//     }
-// });
-
-
-// const listaEventos = [
-//     { id: 1, timestamp: "2026-04-08T03:50:10", activa: 1, t_respuesta: null, id_receptor: null },
-//     { id: 2, timestamp: "2026-04-07T14:20:05", activa: 0, t_respuesta: 3.6, id_receptor: 1 },
-//     { id: 3, timestamp: "2026-04-06T08:10:00", activa: 0, t_respuesta: 8.7, id_receptor: 7 },
-//     { id: 4, timestamp: "2026-04-05T20:15:30", activa: 0, t_respuesta: 5.0, id_receptor: 2 }
-// ];
-// const listaEventos = [
-//     // Hoy (8 de abril)
-//     { id: 1, timestamp: "2026-04-08T03:50:10", activa: 1, t_respuesta: null, id_receptor: null },
-//     { id: 5, timestamp: "2026-04-08T01:20:00", activa: 0, t_respuesta: 2.1, id_receptor: 2 },
-//     { id: 6, timestamp: "2026-04-08T04:30:00", activa: 1, t_respuesta: null, id_receptor: null },
-//     // Ayer (7 de abril)
-//     { id: 2, timestamp: "2026-04-07T14:20:05", activa: 0, t_respuesta: 3.6, id_receptor: 1 },
-//     { id: 7, timestamp: "2026-04-07T10:15:00", activa: 0, t_respuesta: 4.2, id_receptor: 7 },
-//     { id: 8, timestamp: "2026-04-07T23:50:00", activa: 0, t_respuesta: 1.5, id_receptor: 1 },
-//     // 6 de abril
-//     { id: 3, timestamp: "2026-04-06T08:10:00", activa: 0, t_respuesta: 8.7, id_receptor: 7 },
-//     { id: 9, timestamp: "2026-04-06T12:00:00", activa: 0, t_respuesta: 5.5, id_receptor: 2 },
-//     // 5 de abril
-//     { id: 4, timestamp: "2026-04-05T20:15:30", activa: 0, t_respuesta: 5.0, id_receptor: 2 },
-//     { id: 10, timestamp: "2026-04-05T09:30:00", activa: 0, t_respuesta: 12.1, id_receptor: 7 },
-//     { id: 11, timestamp: "2026-04-05T15:00:00", activa: 0, t_respuesta: 6.3, id_receptor: 1 },
-//     // 4 de abril
-//     { id: 12, timestamp: "2026-04-04T18:22:10", activa: 0, t_respuesta: 4.0, id_receptor: 2 },
-//     // 3 de abril
-//     { id: 13, timestamp: "2026-04-03T11:10:00", activa: 0, t_respuesta: 3.2, id_receptor: 7 },
-//     { id: 14, timestamp: "2026-04-03T22:05:00", activa: 0, t_respuesta: 7.8, id_receptor: 1 },
-//     // 2 de abril
-//     { id: 15, timestamp: "2026-04-02T14:40:00", activa: 0, t_respuesta: 2.9, id_receptor: 2 }
-// ];
-
-// app.get('/api/historial', (req, res) => {
-//     res.json(listaEventos); // Esto envía la lista como texto que el navegador entiende
-// });
+//// DATABASE
 
 app.get('/api/historial', async (req, res) => {
     try {
         const result = await db.query('SELECT * FROM eventos ORDER BY timestamp DESC');
+        res.json(result.rows); // result.rows es exactamente tu lista de dicts
+    } catch (err) {
+        console.error(err);
+        res.status(500).send("Error en la base de datos");
+    }
+});
+
+app.get('/api/sensores', async (req, res) => {
+    try {
+        const result = await db.query('SELECT * FROM sensores ORDER BY timestamp DESC');
         res.json(result.rows); // result.rows es exactamente tu lista de dicts
     } catch (err) {
         console.error(err);
