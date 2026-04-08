@@ -1,32 +1,3 @@
-// --- CONFIGURACIÓN DE HIVEMQ ---
-// Estos valores deben coincidir con tu Cluster de HiveMQ
-// const MQTT_HOST = "54ef479282364fc19a690d68c4682d64.s1.eu.hivemq.cloud"; // TU CLUSTER URL
-// const MQTT_PORT = 8884; 
-// const MQTT_USER = "manemane";
-// const MQTT_PASS = "Manemane1";
-
-// const client = new Paho.MQTT.Client(MQTT_HOST, MQTT_PORT, "web_client_" + Math.random());
-// let sensorActual = null;
-// const sensoresDetectados = new Set();
-
-// // Configurar callbacks
-// client.onMessageArrived = onMessage;
-// client.onConnectionLost = (resp) => console.log("Conexión perdida:", resp.errorMessage);
-
-// // Función para conectar
-// function conectar() {
-//     client.connect({
-//         onSuccess: () => {
-//             console.log("¡Conectado a HiveMQ!");
-//             client.subscribe("sensores/#");
-//             cargarHistorial(); // Cargar datos de la DB al iniciar
-//         },
-//         onFailure: (err) => console.log("Fallo de conexión:", err),
-//         useSSL: true,
-//         userName: MQTT_USER,
-//         password: MQTT_PASS
-//     });
-// }
 
 
 const socket = io();
@@ -35,40 +6,7 @@ const socket = io();
 socket.on('sensor', (datos) => {
     console.log("Dato recibido por Socket:", datos);
 
-    // card-sensor-id
-    
-// // 1. Intentamos encontrar la tarjeta en el DOM
-//     const tarjeta = document.getElementById(`card-sensor-${datos.id}`);
 
-//     if (tarjeta) {
-//         // 2. Actualizar el texto del estado
-//         const labelEstado = tarjeta.querySelector('.status-text');
-//         if (labelEstado) {
-//             labelEstado.innerText = estadosDict[datos.estado];
-//         }
-
-//         // 3. Actualizar la batería (si el socket trae ese dato)
-//         if (datos.bateria !== undefined) {
-//             const labelBateria = tarjeta.querySelector('.battery-text');
-//             labelBateria.innerText = `${datos.bateria}%`;
-//         }
-
-//         // 4. Feedback visual: Un pequeño "destello" para notar el cambio
-//         tarjeta.classList.add('ring-2', 'ring-blue-400');
-//         setTimeout(() => {
-//             tarjeta.classList.remove('ring-2', 'ring-blue-400');
-//         }, 2000);
-
-//         // 5. Si el estado es 2 (Intento), podrías cambiar el color de fondo a rojo suave
-//         if (datos.estado === 2) {
-//             tarjeta.classList.replace('bg-white', 'bg-red-50');
-//         } else {
-//             tarjeta.classList.replace('bg-red-50', 'bg-white');
-//         }
-//     } else {
-//         // Si la tarjeta no existe (un sensor nuevo), ahí sí refrescamos todo
-//        cargarSensores();
-//     }
 });
 
 
@@ -525,6 +463,8 @@ function renderizarEstadisticas(idDiv, eventos) {
 
 
 cargarHistorial();
+
+
 cargarSensores();
 
 cargarReceptores();
