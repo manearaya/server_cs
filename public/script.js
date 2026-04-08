@@ -314,52 +314,72 @@ function renderizarEstadisticas(idDiv, eventos) {
     const contenedor = document.getElementById(idDiv);
     if (!contenedor) return;
 
-    // --- CÁLCULO 1: Eventos de hoy ---
+    // eventos HOY
     const hoyStr = new Date().toISOString().split('T')[0];
     const eventosHoy = eventos.filter(ev => ev.timestamp.startsWith(hoyStr)).length;
 
-    // --- CÁLCULO 2: Tiempo de atención promedio ---
-    // Filtramos solo los que tienen t_respuesta (no null)
+    // tiempo de atencion avg
+    // sacar los null 
     const eventosConRespuesta = eventos.filter(ev => ev.t_respuesta !== null && ev.t_respuesta !== undefined);
     const promedio = eventosConRespuesta.length > 0 
         ? (eventosConRespuesta.reduce((acc, ev) => acc + ev.t_respuesta, 0) / eventosConRespuesta.length).toFixed(1)
         : "N/A";
 
-    // --- CÁLCULO 3: Hora pico (Moda de las horas) ---
+    // hora con más eventos
     const horasConteo = {};
     eventos.forEach(ev => {
         const hora = new Date(ev.timestamp).getHours();
         horasConteo[hora] = (horasConteo[hora] || 0) + 1;
     });
     
-    // Encontrar la hora con el valor más alto
-    let horaPico = "N/A";
+    // hacer el max a la antigua
+    let horaPeak = "N/A";
     let maxEventos = 0;
     for (const [hora, cantidad] of Object.entries(horasConteo)) {
         if (cantidad > maxEventos) {
             maxEventos = cantidad;
-            horaPico = `${hora}:00 - ${parseInt(hora) + 1}:00`;
+            horaPeak = `${hora}:00 - ${parseInt(hora) + 1}:00`;
         }
     }
 
-    // --- RENDERIZADO DEL HTML ---
-    contenedor.innerHTML = `
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 text-center">
-                <p class="text-xs font-bold text-blue-600 uppercase tracking-wider">Eventos Hoy</p>
-                <p class="text-3xl font-black text-blue-900">${eventosHoy}</p>
-            </div>
+    // pal html
+        // <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        //     <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 text-center">
+        //         <p class="text-xs font-bold text-blue-600 uppercase tracking-wider">Eventos Hoy</p>
+        //         <p class="text-3xl font-black text-blue-900">${eventosHoy}</p>
+        //     </div>
             
-            <div class="bg-green-50 p-4 rounded-xl border border-green-100 text-center">
-                <p class="text-xs font-bold text-green-600 uppercase tracking-wider">Promedio Respuesta</p>
-                <p class="text-3xl font-black text-green-900">${promedio} <span class="text-sm font-normal">min</span></p>
-            </div>
+        //     <div class="bg-green-50 p-4 rounded-xl border border-green-100 text-center">
+        //         <p class="text-xs font-bold text-green-600 uppercase tracking-wider">Promedio Respuesta</p>
+        //         <p class="text-3xl font-black text-green-900">${promedio} <span class="text-sm font-normal">min</span></p>
+        //     </div>
 
-            <div class="bg-purple-50 p-4 rounded-xl border border-purple-100 text-center">
-                <p class="text-xs font-bold text-purple-600 uppercase tracking-wider">Hora de Mayor Riesgo</p>
-                <p class="text-xl font-black text-purple-900">${horaPico}</p>
-            </div>
+        //     <div class="bg-purple-50 p-4 rounded-xl border border-purple-100 text-center">
+        //         <p class="text-xs font-bold text-purple-600 uppercase tracking-wider">Hora de Mayor Riesgo</p>
+        //         <p class="text-xl font-black text-purple-900">${horaPico}</p>
+        //     </div>
+        // </div>
+
+    contenedor.innerHTML = `
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        
+        <div class="bg-blue-50 p-6 rounded-xl border border-blue-100 text-center">
+            <p class="text-xs font-bold text-blue-600 uppercase tracking-wider">Eventos Hoy</p>
+            <p class="text-3xl font-black text-blue-900">${eventosHoy}</p>
         </div>
+
+        <div class="bg-green-50 p-6 rounded-xl border border-green-100 text-center">
+            <p class="text-xs font-bold text-green-600 uppercase tracking-wider">Promedio Respuesta</p>
+            <p class="text-3xl font-black text-green-900">${promedio} min</p>
+        </div>
+
+        <div class="bg-purple-50 p-6 rounded-xl border border-purple-100 text-center">
+            <p class="text-xs font-bold text-purple-600 uppercase tracking-wider">Hora Pico</p>
+            <p class="text-3xl font-black text-purple-900">${horaPico}</p>
+        </div>
+
+    </div>
     `;
 }
 
