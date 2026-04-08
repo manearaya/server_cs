@@ -311,11 +311,11 @@ function poblarHistorial(historial) {
             <div id="card-historial-${dato.id}" class="flex items-center justify-between p-3 rounded-lg ${esAlerta ? 'bg-red-50' : 'bg-gray-50'} border border-transparent hover:border-gray-200 transition-all">
                 <div class="flex flex-col">
                     <span class="text-xs font-mono text-gray-500">${fecha}</span>
-                    <span class="text-sm font-semibold text-gray-800">Evento #${ev.id}</span>
+                    <span class="text-sm font-semibold text-gray-800">Evento #${dato.id}</span>
                 </div>
                 <div class="flex items-center gap-4">
                     <span class="text-xs font-medium text-gray-600">
-                        ${ev.t_respuesta ? `⏱️ ${ev.t_respuesta}m` : ''}
+                        ${dato.t_respuesta ? `⏱️ ${dato.t_respuesta}m` : ''}
                     </span>
                     <span class="px-2 py-1 rounded text-[10px] font-bold uppercase ${esAlerta ? 'bg-red-200 text-red-700 animate-pulse' : 'bg-green-200 text-green-700'}">
                         ${esAlerta ? 'Pendiente' : 'Resuelto'}
