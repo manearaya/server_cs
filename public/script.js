@@ -83,12 +83,12 @@ function poblarSensores(listaSensores){
 
         // 2. Inyectamos una tarjeta limpia
         lista_sensores.innerHTML += `
-            <div id="card-sensor-${dato.id}" class="${dato.estado === 2 ? 'bg-pink-100 ' : dato.activo === 0 ? 'bg-gray-100 ' : 'bg-white'} p-6 rounded-lg shadow-sm border border-gray-200">
+            <div id="card-sensor-${dato.id}" class="${dato.estado === 2 ? 'bg-yellow-200 ' : dato.activo === 0 ? 'bg-gray-100 ' : 'bg-white'} p-6 rounded-lg shadow-sm border border-gray-200">
                 <h3 class="text-lg font-bold text-gray-900 mb-3">
                     Sensor ${dato.id}
                 </h3>
 
-                <ul class="space-y-2 text-sm text-gray-600">
+                <ul class="space-y-2 text-base text-gray-600">
                     <li class="flex justify-between">
                         <span class="font-medium">Habitación:</span>
                         <span>${dato.habitacion}</span>
@@ -151,12 +151,12 @@ function poblarReceptores(listaReceptores) {
 
         //tarjeta
         lista_receptores.innerHTML += `
-            <div id="card-receptor-${dato.id}" class=" ${dato.activo === 0 ? 'bg-yellow-100 ' : 'bg-white'} p-6 rounded-lg shadow-sm border border-gray-200">
+            <div id="card-receptor-${dato.id}" class=" ${dato.activo === 0 ? 'bg-gray-100 ' : 'bg-white'} p-6 rounded-lg shadow-sm border border-gray-200">
                 <h3 class="text-lg font-bold text-gray-900 mb-3">
                     Receptor ${dato.id}
                 </h3>
 
-                <ul class="space-y-2 text-sm text-gray-600">
+                <ul class="space-y-2 text-base text-gray-600">
 
                     <li class="flex justify-between">
                         <span class="${dato.activo === 0 ? 'text-red-500 font-bold' : 'font-semibold text-blue-600'}
@@ -215,7 +215,7 @@ function poblarHistorial(historial) {
             <div id="card-historial-${dato.id}" class="flex items-center justify-between p-3 rounded-lg ${esAlerta ? 'bg-red-50' : 'bg-gray-50'} border border-transparent hover:border-gray-200 transition-all">
                 <div class="flex flex-col">
                     <span class="text-xs font-mono text-gray-500">${fecha}</span>
-                    <span class="text-sm font-semibold text-gray-800">Evento #${dato.id}</span>
+                    <span class="text-base font-semibold text-gray-800">Evento #${dato.id}</span>
                 </div>
                 <div class="flex items-center gap-4">
                     <span class="text-xs font-medium text-gray-600">
