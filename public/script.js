@@ -89,7 +89,7 @@ function poblarSensores(listaSensores){
                     Sensor ${dato.id}
                 </h3>
                 <span class="text-lg font-medium  ${dato.estado === 0 ? 'text-red-900 font-bold ' : 'text-gray-900 font-bold '}">${nombreActivo}</span>
-        </div>
+        
                 <hr class="border-t border-gray-400 my-6">
 
                 <ul class="space-y-2 text-base text-gray-600">
