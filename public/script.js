@@ -180,7 +180,7 @@ async function cargarHistorial() {
         // 3. Pasamos los datos a tu función de renderizado
         poblarHistorial(historial);
         crearGraficoHistorico(historial) 
-        renderizarEstadisticas(idDiv, historial)
+        renderizarEstadisticas(indicadores-rapidos, historial)
 
     } catch (error) {
         console.error("Error conectando con el servidor:", error);
