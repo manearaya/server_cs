@@ -36,22 +36,29 @@
     </div>
     </aside>
 
-    <div class="col-span-12 grid-cols-2 flex flex-col gap-6">
-        <div class="grid grid-cols-2 gap-4">
-            <h2 class="font-bold mb-4">Sensores</h2>
-        <section class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm h-96 overflow-y-auto">
+<div class="col-span-12 grid-cols-2 flex flex-col gap-6">
+    <div class="grid grid-cols-2 gap-4">
+        
+        <section class="bg-white rounded-xl border border-gray-200 shadow-sm h-96 overflow-y-auto relative">
+            <div class="sticky top-0 bg-white p-6 pb-2 z-10">
+                <h2 class="font-bold text-xl text-gray-800">Sensores</h2>
+            </div>
             
-            <div id="lista-sensores" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div id="lista-sensores" class="grid grid-cols-1 md:grid-cols-2 gap-4 p-6 pt-0">
                 </div>
         </section>
-                 <h2 class="font-bold mb-4">Receptores</h2>
-        <section class="bg-white  p-6 rounded-xl border border-gray-200 shadow-sm h-96 overflow-y-auto ">
+             
+        <section class="bg-white rounded-xl border border-gray-200 shadow-sm h-96 overflow-y-auto relative">
+            <div class="sticky top-0 bg-white p-6 pb-2 z-10">
+                <h2 class="font-bold text-xl text-gray-800">Receptores</h2>
+            </div>
             
-            <div id="lista-receptores"> </div>
+            <div id="lista-receptores" class="p-6 pt-0 space-y-4"> 
+                </div>
         </section>
-        </div>
-    </div>
 
+    </div>
+</div>
 
     <footer class="col-span-12 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-10">
     <details class="group">
