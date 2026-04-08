@@ -34,7 +34,7 @@ const db = new Client({
 db.connect()
     .then(() => console.log(' DB Conectada'))
     .catch(err => {
-        console.error(' Error crítico de DB:', err.message);
+        console.error(' Error DB:', err.message);
     });
 
 // MQTT////////////////////////////////////////////////////////////
@@ -65,22 +65,16 @@ mqttClient.on('message', async (topic, message) => {
 
     // respuesta alerta del receptor
     if (topic.includes('receptor') && topic.includes('respuesta')) {
-        // ASUMIENDO QUE EL EVENTO EXISTE Y EL RECEPTOR SABE EL ID DEL EVENTO
-        const res = await db.query(
-            'UPDATE eventos SET t_respuesta = $1, id_receptor = $2 WHERE id = $3',
-            [data.t_respuesta, data.id_receptor, data.id_evento]
-        );
+
         io.emit('receptor', { id: data.id, bateria: data.bateria, timestamp: ahora });
         io.emit('evento', { id: data.id, t_respuesta: data.t_respuesta, timestamp: ahora , id_receptor: data.id_receptor, activa: 0});
         
-        // si no existe res.rowCount === 0
-
-        if (res.rowCount === 0) {
+        // asumiendo que no existe, solamente agregar la tabla
                 await db.query(
                 'INSERT INTO eventos (timestamp, activa, t_respuesta, id_receptor) VALUES ($1, 0, $2, $3)',
                 [ahora, data.t_respuesta, data.id_receptor]
             );
-        }
+
     }
 
     // status sensor
@@ -109,7 +103,7 @@ mqttClient.on('message', async (topic, message) => {
 app.get('/api/historial', async (req, res) => {
     try {
         const result = await db.query('SELECT * FROM eventos ORDER BY timestamp DESC');
-        res.json(result.rows); // result.rows es exactamente tu lista de dicts
+        res.json(result.rows); 
     } catch (err) {
         console.error(err);
         res.status(500).send("Error en la base de datos");
@@ -119,7 +113,7 @@ app.get('/api/historial', async (req, res) => {
 app.get('/api/sensores', async (req, res) => {
     try {
         const result = await db.query('SELECT * FROM sensores ORDER BY timestamp DESC');
-        res.json(result.rows); // result.rows es exactamente tu lista de dicts
+        res.json(result.rows); 
     } catch (err) {
         console.error(err);
         res.status(500).send("Error en la base de datos");
@@ -130,7 +124,7 @@ app.get('/api/sensores', async (req, res) => {
 app.get('/api/receptores', async (req, res) => {
     try {
         const result = await db.query('SELECT * FROM receptores ORDER BY timestamp DESC');
-        res.json(result.rows); // result.rows es exactamente tu lista de dicts
+        res.json(result.rows); 
     } catch (err) {
         console.error(err);
         res.status(500).send("Error en la base de datos");
