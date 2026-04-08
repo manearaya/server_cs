@@ -68,33 +68,43 @@ mqttClient.on('message', async (topic, message) => {
 //     { id: 3, timestamp: "2026-04-06T08:10:00", activa: 0, t_respuesta: 8.7, id_receptor: 7 },
 //     { id: 4, timestamp: "2026-04-05T20:15:30", activa: 0, t_respuesta: 5.0, id_receptor: 2 }
 // ];
-const listaEventos = [
-    // Hoy (8 de abril)
-    { id: 1, timestamp: "2026-04-08T03:50:10", activa: 1, t_respuesta: null, id_receptor: null },
-    { id: 5, timestamp: "2026-04-08T01:20:00", activa: 0, t_respuesta: 2.1, id_receptor: 2 },
-    { id: 6, timestamp: "2026-04-08T04:30:00", activa: 1, t_respuesta: null, id_receptor: null },
-    // Ayer (7 de abril)
-    { id: 2, timestamp: "2026-04-07T14:20:05", activa: 0, t_respuesta: 3.6, id_receptor: 1 },
-    { id: 7, timestamp: "2026-04-07T10:15:00", activa: 0, t_respuesta: 4.2, id_receptor: 7 },
-    { id: 8, timestamp: "2026-04-07T23:50:00", activa: 0, t_respuesta: 1.5, id_receptor: 1 },
-    // 6 de abril
-    { id: 3, timestamp: "2026-04-06T08:10:00", activa: 0, t_respuesta: 8.7, id_receptor: 7 },
-    { id: 9, timestamp: "2026-04-06T12:00:00", activa: 0, t_respuesta: 5.5, id_receptor: 2 },
-    // 5 de abril
-    { id: 4, timestamp: "2026-04-05T20:15:30", activa: 0, t_respuesta: 5.0, id_receptor: 2 },
-    { id: 10, timestamp: "2026-04-05T09:30:00", activa: 0, t_respuesta: 12.1, id_receptor: 7 },
-    { id: 11, timestamp: "2026-04-05T15:00:00", activa: 0, t_respuesta: 6.3, id_receptor: 1 },
-    // 4 de abril
-    { id: 12, timestamp: "2026-04-04T18:22:10", activa: 0, t_respuesta: 4.0, id_receptor: 2 },
-    // 3 de abril
-    { id: 13, timestamp: "2026-04-03T11:10:00", activa: 0, t_respuesta: 3.2, id_receptor: 7 },
-    { id: 14, timestamp: "2026-04-03T22:05:00", activa: 0, t_respuesta: 7.8, id_receptor: 1 },
-    // 2 de abril
-    { id: 15, timestamp: "2026-04-02T14:40:00", activa: 0, t_respuesta: 2.9, id_receptor: 2 }
-];
+// const listaEventos = [
+//     // Hoy (8 de abril)
+//     { id: 1, timestamp: "2026-04-08T03:50:10", activa: 1, t_respuesta: null, id_receptor: null },
+//     { id: 5, timestamp: "2026-04-08T01:20:00", activa: 0, t_respuesta: 2.1, id_receptor: 2 },
+//     { id: 6, timestamp: "2026-04-08T04:30:00", activa: 1, t_respuesta: null, id_receptor: null },
+//     // Ayer (7 de abril)
+//     { id: 2, timestamp: "2026-04-07T14:20:05", activa: 0, t_respuesta: 3.6, id_receptor: 1 },
+//     { id: 7, timestamp: "2026-04-07T10:15:00", activa: 0, t_respuesta: 4.2, id_receptor: 7 },
+//     { id: 8, timestamp: "2026-04-07T23:50:00", activa: 0, t_respuesta: 1.5, id_receptor: 1 },
+//     // 6 de abril
+//     { id: 3, timestamp: "2026-04-06T08:10:00", activa: 0, t_respuesta: 8.7, id_receptor: 7 },
+//     { id: 9, timestamp: "2026-04-06T12:00:00", activa: 0, t_respuesta: 5.5, id_receptor: 2 },
+//     // 5 de abril
+//     { id: 4, timestamp: "2026-04-05T20:15:30", activa: 0, t_respuesta: 5.0, id_receptor: 2 },
+//     { id: 10, timestamp: "2026-04-05T09:30:00", activa: 0, t_respuesta: 12.1, id_receptor: 7 },
+//     { id: 11, timestamp: "2026-04-05T15:00:00", activa: 0, t_respuesta: 6.3, id_receptor: 1 },
+//     // 4 de abril
+//     { id: 12, timestamp: "2026-04-04T18:22:10", activa: 0, t_respuesta: 4.0, id_receptor: 2 },
+//     // 3 de abril
+//     { id: 13, timestamp: "2026-04-03T11:10:00", activa: 0, t_respuesta: 3.2, id_receptor: 7 },
+//     { id: 14, timestamp: "2026-04-03T22:05:00", activa: 0, t_respuesta: 7.8, id_receptor: 1 },
+//     // 2 de abril
+//     { id: 15, timestamp: "2026-04-02T14:40:00", activa: 0, t_respuesta: 2.9, id_receptor: 2 }
+// ];
 
-app.get('/api/historial', (req, res) => {
-    res.json(listaEventos); // Esto envía la lista como texto que el navegador entiende
+// app.get('/api/historial', (req, res) => {
+//     res.json(listaEventos); // Esto envía la lista como texto que el navegador entiende
+// });
+
+app.get('/api/historial', async (req, res) => {
+    try {
+        const result = await db.query('SELECT * FROM eventos ORDER BY timestamp DESC');
+        res.json(result.rows); // result.rows es exactamente tu lista de dicts
+    } catch (err) {
+        console.error(err);
+        res.status(500).send("Error en la base de datos");
+    }
 });
 
 
