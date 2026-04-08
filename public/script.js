@@ -456,3 +456,5 @@ function renderizarEstadisticas(idDiv, eventos) {
 
 cargarHistorial();
 cargarSensores();
+
+cargarReceptores();
