@@ -32,16 +32,12 @@ async function cargarSensores() {
     try {
         // 1. Llamamos al servidor
         const respuesta = await fetch('/api/sensores');
-        
         // 2. Convertimos la respuesta a un objeto JS
         const listaSensores = await respuesta.json();
-
         // 3. Pasamos los datos a tu función de renderizado
         poblarSensores(listaSensores)
-
     } catch (error) {
         console.error("Error conectando con el servidor:", error);
-
     }
 }
 
@@ -80,6 +76,9 @@ function poblarSensores(listaSensores){
     return a.bateria - b.bateria;
 });
 
+const lista_receptores = document.getElementById('lista-receptores');
+
+
 listaSensores.forEach(dato => {
     // agregarle if tipo = sensor
     // que cambie de color cuando esta inactivo y cuando 
@@ -87,7 +86,7 @@ listaSensores.forEach(dato => {
     const nombreEstado = estadosDict[dato.estado] || "Desconocido";
 
     // 2. Inyectamos una tarjeta limpia
-    lista_sensores.innerHTML += `
+    lista_receptores.innerHTML += `
         <div class="${dato.activo === 0 ? 'bg-yellow-100 ' : 'bg-white'} p-6 rounded-lg shadow-sm border border-gray-200">
             <h3 class="text-lg font-bold text-gray-900 mb-3">
                 Sensor ${dato.id}
@@ -115,6 +114,20 @@ listaSensores.forEach(dato => {
 
 
 }
+
+
+// async function cargarReceptores() {
+//     try {
+//         // 1. Llamamos al servidor
+//         const respuesta = await fetch('/api/receptores');
+//         // 2. Convertimos la respuesta a un objeto JS
+//         const listaReceptores = await respuesta.json();
+//         // 3. Pasamos los datos a tu función de renderizado
+//         poblarReceptores(listaSensores)
+//     } catch (error) {
+//         console.error("Error conectando con el servidor:", error);
+//     }
+// }
 
 
 // const listaSensores = [
