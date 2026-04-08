@@ -80,13 +80,16 @@ function poblarSensores(listaSensores){
         // que cambie de color cuando esta inactivo y cuando 
         // 1. Obtenemos el texto del diccionario
         const nombreEstado = estadosDict[dato.estado];
+        const nombreActivo = activoDict[dato.activo]
 
         // 2. Inyectamos una tarjeta limpia
         lista_sensores.innerHTML += `
-            <div id="card-sensor-${dato.id}" class="${dato.estado === 2 ? 'bg-yellow-200 ' : dato.activo === 0 ? 'bg-gray-100 ' : 'bg-white'} p-6 rounded-lg shadow-sm border border-gray-200">
+            <div id="card-sensor-${dato.id}" class="${dato.estado === 2 ? 'bg-yellow-200 ' : dato.activo === 0 ? 'bg-gray-100 ' : 'bg-white'} p-6 rounded-lg shadow-sm border border-gray-200 ">
                 <h3 class="text-lg font-bold text-gray-900 mb-3">
                     Sensor ${dato.id}
                 </h3>
+                <span class="text-lg font-medium  ${dato.estado === 0 ? 'text-red-900 font-bold ' : 'text-gray-900 font-bold '}">${nombreActivo}</span>
+        </div>
                 <hr class="border-t border-gray-400 my-6">
 
                 <ul class="space-y-2 text-base text-gray-600">
@@ -363,12 +366,12 @@ function renderizarEstadisticas(idDiv, eventos) {
             <p class="text-3xl font-black text-blue-900">${eventosHoy}</p>
         </div>
 
-        <div class="bg-green-50 p-6 rounded-xl border border-green-100 text-center">
+        <div class="bg-blue-50 p-6 rounded-xl border border-blue-100 text-center">
                 <p class="text-xs font-bold text-blue-600 uppercase tracking-wider">Tiempo de atención promedio:</p>
             <p class="text-3xl font-black text-blue-900">${promedio} s</p>
         </div>
 
-        <div class="bg-purple-50 p-6 rounded-xl border border-purple-100 text-center">
+        <div class="bg-blue-50 p-6 rounded-xl border border-blue-100 text-center">
         <p class="text-xs font-bold text-blue-600 uppercase tracking-wider">Horario con más eventos históricamente:</p>
             <p class="text-3xl font-black text-blue-900">${horaPeak}</p>
         </div>
