@@ -75,6 +75,17 @@ app.get('/api/sensores', async (req, res) => {
 });
 
 
+app.get('/api/receptores', async (req, res) => {
+    try {
+        const result = await db.query('SELECT * FROM receptores ORDER BY timestamp DESC');
+        res.json(result.rows); // result.rows es exactamente tu lista de dicts
+    } catch (err) {
+        console.error(err);
+        res.status(500).send("Error en la base de datos");
+    }
+});
+
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Servidor corriendo en el puerto ${PORT}`);
