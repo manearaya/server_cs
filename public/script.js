@@ -392,7 +392,7 @@ function crearGraficoHistorico(eventos) {
         data: {
             labels: datos.etiquetas,
             datasets: [{
-                label: 'Eventos de Caída',
+                label: 'Intentos de levantarse',
                 data: datos.valores,
                 backgroundColor: '#3b82f6', // Azul Tailwind
                 borderRadius: 4
