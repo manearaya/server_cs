@@ -244,6 +244,9 @@
   .mx-auto {
     margin-inline: auto;
   }
+  .my-1 {
+    margin-block: calc(var(--spacing) * 1);
+  }
   .my-6 {
     margin-block: calc(var(--spacing) * 6);
   }

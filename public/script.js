@@ -90,7 +90,7 @@ function poblarSensores(listaSensores){
                 </h3>
                 <span class="text-lg font-medium  ${dato.estado === 0 ? 'text-red-900 font-bold ' : 'text-gray-900 font-bold '}">${nombreActivo}</span>
         
-                <hr class="border-t border-gray-400 my-6">
+                <hr class="border-t border-gray-400 my-1">
 
                 <ul class="space-y-2 text-base text-gray-600">
                     <li class="flex justify-between">
@@ -98,14 +98,14 @@ function poblarSensores(listaSensores){
                         <span>${dato.habitacion}</span>
                     </li>
 
-                    <hr class="border-t border-gray-400 my-6">
+                    <hr class="border-t border-gray-400 my-1">
 
                     <li class="flex justify-between">
                         <span class="font-medium">Estado:</span>
                         <span class="${dato.estado === 2 ? 'text-red-900 font-bold ' : dato.estado === 1 ? 'text-gray-900 font-semibold ' : 'text-blue-600 font-semibold '} ">${nombreEstado}</span>
                     </li>
 
-                    <hr class="border-t border-gray-400 my-6">
+                    <hr class="border-t border-gray-400 my-1">
 
 
                     <li class="flex justify-between">
@@ -161,13 +161,13 @@ function poblarReceptores(listaReceptores) {
                 </h3>
 
                 <ul class="space-y-2 text-base text-gray-600">
-                <hr class="border-t border-gray-400 my-6">
+                <hr class="border-t border-gray-400 my-1">
 
                     <li class="flex justify-between">
                         <span class="${dato.activo === 0 ? 'text-red-500 font-bold' : 'font-semibold text-blue-600'}
                         font-semibold text-blue-600">${nombreActivo}</span>
                     </li>
-                    <hr class="border-t border-gray-400 my-6">
+                    <hr class="border-t border-gray-400 my-1">
                     <li class="flex justify-between">
                         <span class="font-medium">Batería:</span>
                         <span class="${dato.bateria < 20 ? 'text-red-500 font-bold' : ''}">
@@ -210,7 +210,7 @@ function poblarHistorial(historial) {
     
     contenedor.innerHTML = ""; 
 
-    // Ordenar: nuevos arriba
+    // nuevos arriba
     historial.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
     historial.forEach(dato => {
