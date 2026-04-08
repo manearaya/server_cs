@@ -365,9 +365,9 @@ function poblarHistorial(historial) {
     // Ordenar: Nuevos arriba
     historial.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-    historial.forEach(ev => {
-        const fecha = new Date(ev.timestamp).toLocaleString('es-CL');
-        const esAlerta = ev.activa === 1;
+    historial.forEach(dato => {
+        const fecha = new Date(dato.timestamp).toLocaleString('es-CL');
+        const esAlerta = dato.activa === 1;
 
         contenedor.innerHTML += `
             <div id="card-historial-${dato.id}" class="flex items-center justify-between p-3 rounded-lg ${esAlerta ? 'bg-red-50' : 'bg-gray-50'} border border-transparent hover:border-gray-200 transition-all">
