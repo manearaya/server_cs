@@ -376,7 +376,7 @@ function renderizarEstadisticas(idDiv, eventos) {
 
         <div class="bg-purple-50 p-6 rounded-xl border border-purple-100 text-center">
             <p class="text-xs font-bold text-purple-600 uppercase tracking-wider">Hora Pico</p>
-            <p class="text-3xl font-black text-purple-900">${horaPico}</p>
+            <p class="text-3xl font-black text-purple-900">${horaPeak}</p>
         </div>
 
     </div>
