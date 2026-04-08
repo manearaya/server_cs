@@ -93,6 +93,7 @@ function poblarSensores(listaSensores){
                         <span class="font-medium">Habitación:</span>
                         <span>${dato.habitacion}</span>
                     </li>
+                    <hr class="border-t border-gray-200 my-6">
                     <li class="flex justify-between">
                         <span class="font-medium">Estado:</span>
                         <span class="font-semibold text-blue-600">${nombreEstado}</span>
