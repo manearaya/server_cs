@@ -7,6 +7,34 @@ const app = express();
 const http = require('http');
 
 
+// test latencia
+
+const fs   = require('fs');
+
+const LATENCY_LOG = path.join(__dirname, 'latency_log.csv');
+
+if (!fs.existsSync(LATENCY_LOG)) {
+    fs.writeFileSync(
+        LATENCY_LOG,
+        'seq,tipo,rate_label,intervalo_ms,ts_envio,ts_recibido,ts_guardado,lat_recepcion_ms,lat_db_ms,lat_total_ms\n'
+    );
+    console.log('latency_log.csv creado');
+}
+
+function logLatencia({ seq, tipo, rate_label, intervalo_ms, ts_envio, ts_recibido, ts_guardado }) {
+    if (!ts_envio) return;
+    const lat_recepcion = ts_recibido - ts_envio;
+    const lat_db        = ts_guardado  - ts_recibido;
+    const lat_total     = ts_guardado  - ts_envio;
+    const fila = [seq ?? '', tipo, rate_label ?? 'unknown', intervalo_ms ?? '',
+                  ts_envio, ts_recibido, ts_guardado, lat_recepcion, lat_db, lat_total].join(',') + '\n';
+    fs.appendFileSync(LATENCY_LOG, fila);
+    console.log(`  📊 [#${seq}] rate=${rate_label} | recepción=${lat_recepcion}ms | db=${lat_db}ms | total=${lat_total}ms`);
+}
+
+// fin cosas latencia
+
+
 // SOCKET IO
 const { Server } = require('socket.io');
 const server = http.createServer(app);
@@ -16,6 +44,8 @@ const io = new Server(server, {
         methods: ["GET", "POST"]
     }
 });
+
+
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -51,8 +81,11 @@ mqttClient.on('connect', () => {
 
 
 mqttClient.on('message', async (topic, message) => {
+    const ts_recibido = Date.now(); //  latencia
     const data = JSON.parse(message.toString());
     const ahora = new Date().toISOString();
+
+    const { seq, rate_label, intervalo_ms, ts_envio } = data;  // latencia
 
     // status receptor
     if (topic.includes('receptor') && topic.includes('status')) {
@@ -60,7 +93,9 @@ mqttClient.on('message', async (topic, message) => {
             'UPDATE receptores SET bateria = $1, timestamp = $2 WHERE id = $3',
             [data.bateria, ahora, data.id]
         );
+        const ts_guardado = Date.now(); // latencia
         io.emit('receptor', { id: data.id, bateria: data.bateria, timestamp: ahora });
+        logLatencia({ seq, tipo: 'receptor_status', rate_label, intervalo_ms, ts_envio, ts_recibido, ts_guardado });// latencia
     }
 
     // respuesta alerta del receptor
@@ -74,6 +109,8 @@ mqttClient.on('message', async (topic, message) => {
                 'INSERT INTO eventos (timestamp, activa, t_respuesta, id_receptor) VALUES ($1, 0, $2, $3)',
                 [ahora, data.t_respuesta, data.id_receptor]
             );
+            const ts_guardado = Date.now();// latencia
+            logLatencia({ seq, tipo: 'receptor_respuesta', rate_label, intervalo_ms, ts_envio, ts_recibido, ts_guardado }); //
 
     }
 
@@ -87,13 +124,18 @@ mqttClient.on('message', async (topic, message) => {
         io.emit('sensor', { id: data.id, estado: data.estado, timestamp: ahora, bateria: data.bateria });
 
         //  si el estado es intento crear fila en eventos
+        let ts_guardado;// latencia
         if (data.estado === 2) {
             await db.query(
                 'INSERT INTO eventos (timestamp, activa, t_respuesta, id_receptor) VALUES ($1, 1, NULL, NULL)',
                 [ahora]
             );
+            ts_guardado = Date.now(); // 
             io.emit('evento', { id: data.id, t_respuesta: null, timestamp: ahora , id_receptor: null, activa: 1});
+        }else {
+            ts_guardado = Date.now(); // 
         }
+        logLatencia({ seq, tipo: 'sensor_status', rate_label, intervalo_ms, ts_envio, ts_recibido, ts_guardado }); // 
     }
 });
 
@@ -129,6 +171,23 @@ app.get('/api/receptores', async (req, res) => {
         console.error(err);
         res.status(500).send("Error en la base de datos");
     }
+});
+
+
+app.get('/api/latencia', (req, res) => {
+    if (fs.existsSync(LATENCY_LOG)) {
+        res.download(LATENCY_LOG, 'latency_log.csv');
+    } else {
+        res.status(404).send('Sin datos todavía.');
+    }
+});
+
+app.delete('/api/latencia', (req, res) => {
+    fs.writeFileSync(
+        LATENCY_LOG,
+        'seq,tipo,rate_label,intervalo_ms,ts_envio,ts_recibido,ts_guardado,lat_recepcion_ms,lat_db_ms,lat_total_ms\n'
+    );
+    res.json({ ok: true, mensaje: 'CSV reseteado' });
 });
 
 
