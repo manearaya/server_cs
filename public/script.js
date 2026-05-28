@@ -5,6 +5,7 @@ const socket = io();
 
 socket.on('sensor', (datos) => {
     console.log("Dato recibido por Socket:", datos);
+    cargarSensores()
     // id de la tarjeta en html: card-sensor-id
     // io.emit('sensor', { id: data.id, estado: data.estado, timestamp: ahora, bateria: data.bateria });
     // actualizar datos 
@@ -14,6 +15,7 @@ socket.on('sensor', (datos) => {
 
 socket.on('receptor', (datos) => {
     console.log("Dato recibido por Socket:", datos);
+    cargarReceptores()
     // id de la tarjeta en html: card-receptor-id
     // io.emit('receptor', { id: data.id, bateria: data.bateria, timestamp: ahora });
     // actualizar datos 
