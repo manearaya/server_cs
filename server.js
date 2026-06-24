@@ -1,14 +1,12 @@
 const mqtt = require('mqtt');
 const { Client } = require('pg');
-const express = require('express'); 
+const express = require('express');
 const path = require('path');
-const app = express();
-
 const http = require('http');
-
 
 // SOCKET IO
 const { Server } = require('socket.io');
+const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
@@ -19,25 +17,25 @@ const io = new Server(server, {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Para que pesque el index dentro de la carpeta
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// CONEXIÓN DB
+// ============================================================
+//  CONEXIÓN DB
+// ============================================================
 const db = new Client({
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false } 
+    ssl: { rejectUnauthorized: false }
 });
 
-// accion de contectar
 db.connect()
-    .then(() => console.log(' DB Conectada'))
-    .catch(err => {
-        console.error(' Error DB:', err.message);
-    });
+    .then(() => console.log('DB Conectada'))
+    .catch(err => console.error('Error DB:', err.message));
 
-// MQTT////////////////////////////////////////////////////////////
+// ============================================================
+//  MQTT
+// ============================================================
 const mqttClient = mqtt.connect(`mqtts://${process.env.MQTT_HOST}`, {
     port: 8883,
     username: process.env.MQTT_USER,
@@ -45,65 +43,197 @@ const mqttClient = mqtt.connect(`mqtts://${process.env.MQTT_HOST}`, {
 });
 
 mqttClient.on('connect', () => {
+    // caidas/# cubre status, respuesta y el nuevo topic de conexión (LWT)
     mqttClient.subscribe('caidas/#');
     console.log("conectado a hiveMQ y escuchando");
 });
 
+// ============================================================
+//  HELPERS DE EMISIÓN
+//  Emiten SIEMPRE la fila completa desde la BDD para que el
+//  frontend reciba todos los campos (estado, bateria, activo...).
+// ============================================================
+async function emitirSensor(id, id_receptor) {
+    const r = await db.query(
+        'SELECT * FROM sensores WHERE id = $1 AND id_receptor = $2',
+        [id, id_receptor]
+    );
+    if (r.rows.length) io.emit('sensor', r.rows[0]);
+}
 
+async function emitirReceptor(id) {
+    const r = await db.query('SELECT * FROM receptores WHERE id = $1', [id]);
+    if (r.rows.length) io.emit('receptor', r.rows[0]);
+}
+
+// ============================================================
+//  MENSAJES MQTT
+// ============================================================
 mqttClient.on('message', async (topic, message) => {
-    const data = JSON.parse(message.toString());
+
+    let data;
+    try {
+        data = JSON.parse(message.toString());
+    } catch (e) {
+        console.error('Mensaje no-JSON en', topic, '->', message.toString());
+        return;
+    }
+
     const ahora = new Date().toISOString();
 
-    // status receptor
-    if (topic.includes('receptor') && topic.includes('status')) {
-        await db.query(
-            'UPDATE receptores SET bateria = $1, timestamp = $2 WHERE id = $3',
-            [data.bateria, ahora, data.id]
-        );
-        io.emit('receptor', { id: data.id, bateria: data.bateria, timestamp: ahora });
-    }
+    try {
+        // --------------------------------------------------------
+        //  NUEVO: CONEXIÓN / LWT DEL RECEPTOR  ->  caidas/receptor/conexion
+        //  payload: { id, online: true|false }
+        //    - online:true  -> mensaje "birth" que publica el receptor al conectar
+        //    - online:false -> Last Will que publica el BROKER si el receptor
+        //                      se cae de forma abrupta (sin DISCONNECT limpio)
+        //
+        //  Cuando el receptor cae, sus sensores quedan inalcanzables
+        //  (toda su data pasa por él), así que también se marcan activo=0.
+        // --------------------------------------------------------
+        if (topic.includes('receptor') && topic.includes('conexion')) {
+            const activo = data.online ? 1 : 0;
 
-    // respuesta alerta del receptor
-    if (topic.includes('receptor') && topic.includes('respuesta')) {
-
-        io.emit('receptor', { id: data.id, bateria: data.bateria, timestamp: ahora });
-        io.emit('evento', { id: data.id, t_respuesta: data.t_respuesta, timestamp: ahora , id_receptor: data.id_receptor, activa: 0});
-        
-        // asumiendo que no existe, solamente agregar la tabla
-                await db.query(
-                'INSERT INTO eventos (timestamp, activa, t_respuesta, id_receptor) VALUES ($1, 0, $2, $3)',
-                [ahora, data.t_respuesta, data.id_receptor]
-            );
-
-    }
-
-    // status sensor
-    if (topic.includes('sensor') && topic.includes('status')) {
-        // actualizar sensores
-        await db.query(
-            'UPDATE sensores SET estado = $1, bateria = $2, timestamp = $3 WHERE id = $4',
-            [data.estado, data.bateria, ahora, data.id]
-        );
-        io.emit('sensor', { id: data.id, estado: data.estado, timestamp: ahora, bateria: data.bateria });
-
-        //  si el estado es intento crear fila en eventos
-        if (data.estado === 2) {
             await db.query(
-                'INSERT INTO eventos (timestamp, activa, t_respuesta, id_receptor) VALUES ($1, 1, NULL, NULL)',
-                [ahora]
+                `INSERT INTO receptores (id, timestamp, activo)
+                 VALUES ($1, $2, $3)
+                 ON CONFLICT (id) DO UPDATE
+                   SET timestamp = EXCLUDED.timestamp,
+                       activo    = EXCLUDED.activo`,
+                [data.id, ahora, activo]
             );
-            io.emit('evento', { id: data.id, t_respuesta: null, timestamp: ahora , id_receptor: null, activa: 1});
+            await emitirReceptor(data.id);
+
+            if (!data.online) {
+                await db.query(
+                    'UPDATE sensores SET activo = 0 WHERE id_receptor = $1',
+                    [data.id]
+                );
+                const sens = await db.query(
+                    'SELECT * FROM sensores WHERE id_receptor = $1',
+                    [data.id]
+                );
+                sens.rows.forEach(s => io.emit('sensor', s));
+            }
+            return;
         }
+
+        // --------------------------------------------------------
+        //  STATUS RECEPTOR  ->  caidas/receptor/status
+        //  payload: { id, bateria }
+        // --------------------------------------------------------
+        if (topic.includes('receptor') && topic.includes('status')) {
+            await db.query(
+                `INSERT INTO receptores (id, bateria, timestamp, activo)
+                 VALUES ($1, $2, $3, 1)
+                 ON CONFLICT (id) DO UPDATE
+                   SET bateria   = EXCLUDED.bateria,
+                       timestamp = EXCLUDED.timestamp,
+                       activo    = 1`,
+                [data.id, data.bateria, ahora]
+            );
+            await emitirReceptor(data.id);
+            return;
+        }
+
+        // --------------------------------------------------------
+        //  RESPUESTA A ALERTA  ->  caidas/receptor/respuesta
+        //  payload: { id, t_respuesta, id_receptor, bateria }
+        //  ('id' y 'bateria' son del SENSOR)
+        // --------------------------------------------------------
+        if (topic.includes('receptor') && topic.includes('respuesta')) {
+
+            if (data.id_receptor == null) {
+                console.warn('respuesta sin id_receptor, ignorada');
+                return;
+            }
+
+            const upd = await db.query(
+                `UPDATE eventos
+                    SET activa = 0, t_respuesta = $1
+                  WHERE id = (
+                        SELECT id FROM eventos
+                         WHERE activa = 1
+                           AND id_sensor = $2
+                           AND id_receptor = $3
+                         ORDER BY timestamp DESC
+                         LIMIT 1
+                  )
+                  RETURNING *`,
+                [data.t_respuesta, data.id, data.id_receptor]
+            );
+
+            if (upd.rows.length) {
+                io.emit('evento', upd.rows[0]);
+            }
+
+            await db.query(
+                `UPDATE sensores SET bateria = $1, timestamp = $2
+                  WHERE id = $3 AND id_receptor = $4`,
+                [data.bateria, ahora, data.id, data.id_receptor]
+            );
+            await emitirSensor(data.id, data.id_receptor);
+            return;
+        }
+
+        // --------------------------------------------------------
+        //  STATUS SENSOR  ->  caidas/sensor/status
+        //  payload: { id, id_receptor, estado, bateria }
+        //  (ya no hay 'habitacion')
+        // --------------------------------------------------------
+        if (topic.includes('sensor') && topic.includes('status')) {
+
+            if (data.id_receptor == null) {
+                console.warn('sensor status sin id_receptor -> actualiza el firmware del receptor');
+                return;
+            }
+
+            await db.query(
+                `INSERT INTO sensores (id, id_receptor, estado, bateria, timestamp, activo)
+                 VALUES ($1, $2, $3, $4, $5, 1)
+                 ON CONFLICT (id, id_receptor) DO UPDATE
+                   SET estado    = EXCLUDED.estado,
+                       bateria   = EXCLUDED.bateria,
+                       timestamp = EXCLUDED.timestamp,
+                       activo    = 1`,
+                [data.id, data.id_receptor, data.estado, data.bateria, ahora]
+            );
+            await emitirSensor(data.id, data.id_receptor);
+
+            // Crear alerta solo al ENTRAR en estado 2 (sin duplicar si ya hay una abierta)
+            if (data.estado === 2) {
+                const ev = await db.query(
+                    `INSERT INTO eventos (timestamp, activa, t_respuesta, id_receptor, id_sensor)
+                     SELECT $1, 1, NULL, $2, $3
+                     WHERE NOT EXISTS (
+                        SELECT 1 FROM eventos
+                         WHERE activa = 1
+                           AND id_sensor = $3
+                           AND id_receptor = $2
+                     )
+                     RETURNING *`,
+                    [ahora, data.id_receptor, data.id]
+                );
+                if (ev.rows.length) {
+                    io.emit('evento', ev.rows[0]);
+                }
+            }
+            return;
+        }
+
+    } catch (err) {
+        console.error('Error procesando', topic, '->', err.message);
     }
 });
 
-
-//// DATABASE
-
+// ============================================================
+//  API REST
+// ============================================================
 app.get('/api/historial', async (req, res) => {
     try {
         const result = await db.query('SELECT * FROM eventos ORDER BY timestamp DESC');
-        res.json(result.rows); 
+        res.json(result.rows);
     } catch (err) {
         console.error(err);
         res.status(500).send("Error en la base de datos");
@@ -112,28 +242,25 @@ app.get('/api/historial', async (req, res) => {
 
 app.get('/api/sensores', async (req, res) => {
     try {
-        const result = await db.query('SELECT * FROM sensores ORDER BY timestamp DESC');
-        res.json(result.rows); 
+        const result = await db.query('SELECT * FROM sensores ORDER BY id_receptor, id');
+        res.json(result.rows);
     } catch (err) {
         console.error(err);
         res.status(500).send("Error en la base de datos");
     }
 });
-
 
 app.get('/api/receptores', async (req, res) => {
     try {
-        const result = await db.query('SELECT * FROM receptores ORDER BY timestamp DESC');
-        res.json(result.rows); 
+        const result = await db.query('SELECT * FROM receptores ORDER BY id');
+        res.json(result.rows);
     } catch (err) {
         console.error(err);
         res.status(500).send("Error en la base de datos");
     }
 });
 
-
-
-
+// ============================================================
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`Servidor corriendo en puerto ${PORT}`);
