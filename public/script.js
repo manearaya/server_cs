@@ -38,9 +38,9 @@ socket.on('evento', (datos) => {
 //  Diccionarios
 // ─────────────────────────────────────────────────────────────
 const estadosDict = {
-    1: "Cama desocupada",
+    1: "Cama ocupada",
     2: "Riesgo de caída",
-    3: "Cama ocupada"
+    3: "Cama desocupada"
 };
 
 const activoDict = {
