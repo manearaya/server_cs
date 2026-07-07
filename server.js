@@ -3,6 +3,7 @@ const { Client } = require('pg');
 const express = require('express');
 const path = require('path');
 const http = require('http');
+const session = require('express-session');
 
 // SOCKET IO
 const { Server } = require('socket.io');
@@ -15,10 +16,66 @@ const io = new Server(server, {
     }
 });
 
+// ============================================================
+//  LOGIN / SESIÓN
+//  Requiere las variables de entorno:
+//    DASHBOARD_PASSWORD  -> la contraseña del dashboard
+//    SESSION_SECRET      -> cualquier string largo y aleatorio
+// ============================================================
+app.set('trust proxy', 1);   // Railway va detrás de un proxy (para cookie 'secure')
+
+const sessionMiddleware = session({
+    secret: process.env.SESSION_SECRET || 'cambia-esto-por-un-secreto-largo',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: true,               // solo por HTTPS (Railway lo es)
+        httpOnly: true,
+        maxAge: 1000 * 60 * 60 * 8  // 8 horas
+    }
+});
+
+app.use(express.urlencoded({ extended: true })); // leer el formulario del login
+app.use(sessionMiddleware);
+
+// Middleware: exige estar logueado
+function requireLogin(req, res, next) {
+    if (req.session && req.session.autenticado) return next();
+    return res.redirect('/login');
+}
+
+// --- Rutas de login (accesibles SIN sesión) ---
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+app.post('/login', (req, res) => {
+    if (req.body.password === process.env.DASHBOARD_PASSWORD) {
+        req.session.autenticado = true;
+        return res.redirect('/');
+    }
+    res.redirect('/login?error=1');
+});
+
+app.get('/logout', (req, res) => {
+    req.session.destroy(() => res.redirect('/login'));
+});
+
+// --- De aquí en adelante, TODO requiere estar logueado ---
+app.use(requireLogin);
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// --- Proteger Socket.IO con la misma sesión ---
+io.engine.use(sessionMiddleware);
+io.use((socket, next) => {
+    if (socket.request.session && socket.request.session.autenticado) {
+        return next();
+    }
+    next(new Error('no autorizado'));
 });
 
 // ============================================================
@@ -43,7 +100,7 @@ const mqttClient = mqtt.connect(`mqtts://${process.env.MQTT_HOST}`, {
 });
 
 mqttClient.on('connect', () => {
-    // caidas/# cubre status, respuesta y el nuevo topic de conexión (LWT)
+    // caidas/# cubre status, respuesta y el topic de conexión (LWT)
     mqttClient.subscribe('caidas/#');
     console.log("conectado a hiveMQ y escuchando");
 });
@@ -83,14 +140,8 @@ mqttClient.on('message', async (topic, message) => {
 
     try {
         // --------------------------------------------------------
-        //  NUEVO: CONEXIÓN / LWT DEL RECEPTOR  ->  caidas/receptor/conexion
+        //  CONEXIÓN / LWT DEL RECEPTOR  ->  caidas/receptor/conexion
         //  payload: { id, online: true|false }
-        //    - online:true  -> mensaje "birth" que publica el receptor al conectar
-        //    - online:false -> Last Will que publica el BROKER si el receptor
-        //                      se cae de forma abrupta (sin DISCONNECT limpio)
-        //
-        //  Cuando el receptor cae, sus sensores quedan inalcanzables
-        //  (toda su data pasa por él), así que también se marcan activo=0.
         // --------------------------------------------------------
         if (topic.includes('receptor') && topic.includes('conexion')) {
             const activo = data.online ? 1 : 0;
@@ -139,8 +190,7 @@ mqttClient.on('message', async (topic, message) => {
 
         // --------------------------------------------------------
         //  RESPUESTA A ALERTA  ->  caidas/receptor/respuesta
-        //  payload: { id, t_respuesta, id_receptor, bateria }
-        //  ('id' y 'bateria' son del SENSOR)
+        //  payload: { id, t_respuesta, id_receptor, bateria }  ('id' y 'bateria' son del SENSOR)
         // --------------------------------------------------------
         if (topic.includes('receptor') && topic.includes('respuesta')) {
 
@@ -180,7 +230,6 @@ mqttClient.on('message', async (topic, message) => {
         // --------------------------------------------------------
         //  STATUS SENSOR  ->  caidas/sensor/status
         //  payload: { id, id_receptor, estado, bateria }
-        //  (ya no hay 'habitacion')
         // --------------------------------------------------------
         if (topic.includes('sensor') && topic.includes('status')) {
 
@@ -228,7 +277,7 @@ mqttClient.on('message', async (topic, message) => {
 });
 
 // ============================================================
-//  API REST
+//  API REST  (protegida: van después de app.use(requireLogin))
 // ============================================================
 app.get('/api/historial', async (req, res) => {
     try {

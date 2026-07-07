@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar sesión — Sistema de caídas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <form method="POST" action="/login" class="bg-white p-8 rounded-xl shadow-md w-80">
+        <h1 class="text-xl font-bold mb-1 text-gray-800">Sistema de caídas</h1>
+        <p class="text-sm text-gray-500 mb-6">Ingresa la contraseña para continuar</p>
+
+        <input type="password" name="password" placeholder="Contraseña"
+               class="w-full border border-gray-300 rounded-lg px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+               required autofocus>
+
+        <button type="submit"
+                class="w-full bg-blue-600 text-white rounded-lg px-3 py-2 font-semibold hover:bg-blue-700 transition">
+            Entrar
+        </button>
+
+        <p id="msg-error" class="text-sm text-red-600 mt-4 text-center hidden">
+            Contraseña incorrecta.
+        </p>
+    </form>
+
+    <script>
+        // Muestra el mensaje de error si la URL trae ?error=1
+        if (new URLSearchParams(window.location.search).get('error')) {
+            document.getElementById('msg-error').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
