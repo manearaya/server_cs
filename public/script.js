@@ -2,21 +2,19 @@ const socket = io();
 
 // ─────────────────────────────────────────────────────────────
 //  Helpers de identidad
-//  El id de un sensor (0-9) solo es único DENTRO de su receptor,
-//  así que el id del elemento del DOM es card-sensor-{id_receptor}-{id}.
 // ─────────────────────────────────────────────────────────────
 function idTarjetaSensor(dato)   { return `card-sensor-${dato.id_receptor}-${dato.id}`; }
 function idTarjetaReceptor(dato) { return `card-receptor-${dato.id}`; }
 
 // ─────────────────────────────────────────────────────────────
-//  Socket events — actualiza SOLO la tarjeta que cambió
+//  Socket events
 // ─────────────────────────────────────────────────────────────
 socket.on('sensor', (datos) => {
     console.log("Socket sensor:", datos);
     if (document.getElementById(idTarjetaSensor(datos))) {
         actualizarTarjetaSensor(datos);
     } else {
-        cargarSensores(); // sensor nuevo (recién emparejado) -> redibujar lista
+        cargarSensores();
     }
 });
 
@@ -50,8 +48,6 @@ const activoDict = {
 
 // ─────────────────────────────────────────────────────────────
 //  HTML interno de las tarjetas
-//  CAMBIO: se eliminó la fila "Habitación" (los sensores ya no
-//  tienen número de habitación, solo el id que da el receptor).
 // ─────────────────────────────────────────────────────────────
 function htmlInteriorSensor(dato) {
     const nombreEstado = estadosDict[dato.estado] ?? dato.estado;
@@ -117,7 +113,7 @@ function clasesTarjetaReceptor(dato) {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  Actualizar una tarjeta existente (sin tocar el resto del DOM)
+//  Actualizar una tarjeta existente
 // ─────────────────────────────────────────────────────────────
 function actualizarTarjetaSensor(dato) {
     const card = document.getElementById(idTarjetaSensor(dato));
@@ -134,7 +130,7 @@ function actualizarTarjetaReceptor(dato) {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  Carga completa (primera vez o nodo nuevo)
+//  Carga completa
 // ─────────────────────────────────────────────────────────────
 async function cargarSensores() {
     try {
@@ -356,6 +352,108 @@ function renderizarEstadisticas(idDiv, eventos) {
             </div>
         </div>
     `;
+}
+
+// ═════════════════════════════════════════════════════════════
+//  EXPORTAR A CSV  +  BORRAR HISTORIAL YA EXPORTADO
+// ═════════════════════════════════════════════════════════════
+
+// Recuerda hasta qué id se exportó, para que el borrado solo
+// elimine lo que realmente se descargó.
+let ultimoIdExportado = null;
+
+// Convierte las filas del historial a texto CSV
+function generarCSV(filas) {
+    const columnas = ['id', 'timestamp', 'activa', 't_respuesta', 'id_receptor', 'id_sensor'];
+    const escapar = (v) => {
+        if (v == null) return '';
+        const s = String(v).replace(/"/g, '""');
+        return /[",\n]/.test(s) ? `"${s}"` : s;
+    };
+    const encabezado = columnas.join(',');
+    const lineas = filas.map(f => columnas.map(c => escapar(f[c])).join(','));
+    return [encabezado, ...lineas].join('\n');
+}
+
+// Dispara la descarga del CSV en el navegador
+function descargarCSV(csv) {
+    const fecha = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+    // \uFEFF = BOM, para que Excel abra bien los acentos
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = `historial_caidas_${fecha}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+async function exportarHistorial() {
+    try {
+        const respuesta = await fetch('/api/historial');
+        const historial = await respuesta.json();
+
+        if (!historial.length) {
+            alert('No hay datos en el historial para exportar.');
+            return;
+        }
+
+        descargarCSV(generarCSV(historial));
+
+        // guarda el id más alto exportado y habilita el botón de borrar
+        ultimoIdExportado = Math.max(...historial.map(ev => Number(ev.id)));
+        const btnBorrar = document.getElementById('btn-borrar');
+        if (btnBorrar) btnBorrar.disabled = false;
+
+        console.log(`Exportadas ${historial.length} filas (hasta id ${ultimoIdExportado}).`);
+    } catch (error) {
+        console.error('Error al exportar:', error);
+        alert('Ocurrió un error al exportar los datos.');
+    }
+}
+
+async function borrarHistorial() {
+    if (ultimoIdExportado === null) {
+        alert('Primero exporta los datos con "Exportar datos".');
+        return;
+    }
+    if (!confirm('¿Seguro que quieres borrar del historial los registros ya exportados?\nSolo se borran los eventos resueltos que descargaste. Esta acción no se puede deshacer.')) {
+        return;
+    }
+    try {
+        const respuesta = await fetch('/api/borrar-historial', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ hasta_id: ultimoIdExportado })
+        });
+        const res = await respuesta.json();
+
+        if (!respuesta.ok) throw new Error(res.error || 'Error del servidor');
+
+        alert(`Se borraron ${res.borrados} registros del historial.`);
+        ultimoIdExportado = null;
+        const btnBorrar = document.getElementById('btn-borrar');
+        if (btnBorrar) btnBorrar.disabled = true;
+        cargarHistorial();   // refresca la vista
+    } catch (error) {
+        console.error('Error al borrar:', error);
+        alert('Ocurrió un error al borrar el historial.');
+    }
+}
+
+// Conecta los botones (funciona esté el script en <head> o al final del body)
+function conectarBotonesDatos() {
+    const be = document.getElementById('btn-exportar');
+    const bb = document.getElementById('btn-borrar');
+    if (be) be.addEventListener('click', exportarHistorial);
+    if (bb) { bb.addEventListener('click', borrarHistorial); bb.disabled = true; }
+}
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', conectarBotonesDatos);
+} else {
+    conectarBotonesDatos();
 }
 
 // ─────────────────────────────────────────────────────────────

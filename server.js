@@ -18,24 +18,23 @@ const io = new Server(server, {
 
 // ============================================================
 //  LOGIN / SESIÓN
-//  Requiere las variables de entorno:
-//    DASHBOARD_PASSWORD  -> la contraseña del dashboard
-//    SESSION_SECRET      -> cualquier string largo y aleatorio
+//  Variables de entorno: DASHBOARD_PASSWORD, SESSION_SECRET
 // ============================================================
-app.set('trust proxy', 1);   // Railway va detrás de un proxy (para cookie 'secure')
+app.set('trust proxy', 1);   // Railway va detrás de un proxy (cookie 'secure')
 
 const sessionMiddleware = session({
     secret: process.env.SESSION_SECRET || 'cambia-esto-por-un-secreto-largo',
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: true,               // solo por HTTPS (Railway lo es)
+        secure: true,
         httpOnly: true,
-        maxAge: 1000 * 60 * 60 * 8  // 8 horas
+        maxAge: 1000 * 60 * 60 * 8   // 8 horas
     }
 });
 
-app.use(express.urlencoded({ extended: true })); // leer el formulario del login
+app.use(express.urlencoded({ extended: true }));  // formulario de login
+app.use(express.json());                          // cuerpos JSON (ej. borrar historial)
 app.use(sessionMiddleware);
 
 // Middleware: exige estar logueado
@@ -44,7 +43,7 @@ function requireLogin(req, res, next) {
     return res.redirect('/login');
 }
 
-// --- Rutas de login (accesibles SIN sesión) ---
+// --- Rutas de login (SIN sesión) ---
 app.get('/login', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
@@ -61,7 +60,7 @@ app.get('/logout', (req, res) => {
     req.session.destroy(() => res.redirect('/login'));
 });
 
-// --- De aquí en adelante, TODO requiere estar logueado ---
+// --- De aquí en adelante TODO requiere login ---
 app.use(requireLogin);
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -69,7 +68,7 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// --- Proteger Socket.IO con la misma sesión ---
+// --- Socket.IO protegido con la misma sesión ---
 io.engine.use(sessionMiddleware);
 io.use((socket, next) => {
     if (socket.request.session && socket.request.session.autenticado) {
@@ -100,15 +99,12 @@ const mqttClient = mqtt.connect(`mqtts://${process.env.MQTT_HOST}`, {
 });
 
 mqttClient.on('connect', () => {
-    // caidas/# cubre status, respuesta y el topic de conexión (LWT)
     mqttClient.subscribe('caidas/#');
     console.log("conectado a hiveMQ y escuchando");
 });
 
 // ============================================================
 //  HELPERS DE EMISIÓN
-//  Emiten SIEMPRE la fila completa desde la BDD para que el
-//  frontend reciba todos los campos (estado, bateria, activo...).
 // ============================================================
 async function emitirSensor(id, id_receptor) {
     const r = await db.query(
@@ -139,134 +135,86 @@ mqttClient.on('message', async (topic, message) => {
     const ahora = new Date().toISOString();
 
     try {
-        // --------------------------------------------------------
-        //  CONEXIÓN / LWT DEL RECEPTOR  ->  caidas/receptor/conexion
-        //  payload: { id, online: true|false }
-        // --------------------------------------------------------
+        // CONEXIÓN / LWT DEL RECEPTOR -> caidas/receptor/conexion
         if (topic.includes('receptor') && topic.includes('conexion')) {
             const activo = data.online ? 1 : 0;
-
             await db.query(
                 `INSERT INTO receptores (id, timestamp, activo)
                  VALUES ($1, $2, $3)
                  ON CONFLICT (id) DO UPDATE
-                   SET timestamp = EXCLUDED.timestamp,
-                       activo    = EXCLUDED.activo`,
+                   SET timestamp = EXCLUDED.timestamp, activo = EXCLUDED.activo`,
                 [data.id, ahora, activo]
             );
             await emitirReceptor(data.id);
-
             if (!data.online) {
-                await db.query(
-                    'UPDATE sensores SET activo = 0 WHERE id_receptor = $1',
-                    [data.id]
-                );
-                const sens = await db.query(
-                    'SELECT * FROM sensores WHERE id_receptor = $1',
-                    [data.id]
-                );
+                await db.query('UPDATE sensores SET activo = 0 WHERE id_receptor = $1', [data.id]);
+                const sens = await db.query('SELECT * FROM sensores WHERE id_receptor = $1', [data.id]);
                 sens.rows.forEach(s => io.emit('sensor', s));
             }
             return;
         }
 
-        // --------------------------------------------------------
-        //  STATUS RECEPTOR  ->  caidas/receptor/status
-        //  payload: { id, bateria }
-        // --------------------------------------------------------
+        // STATUS RECEPTOR -> caidas/receptor/status
         if (topic.includes('receptor') && topic.includes('status')) {
             await db.query(
                 `INSERT INTO receptores (id, bateria, timestamp, activo)
                  VALUES ($1, $2, $3, 1)
                  ON CONFLICT (id) DO UPDATE
-                   SET bateria   = EXCLUDED.bateria,
-                       timestamp = EXCLUDED.timestamp,
-                       activo    = 1`,
+                   SET bateria = EXCLUDED.bateria, timestamp = EXCLUDED.timestamp, activo = 1`,
                 [data.id, data.bateria, ahora]
             );
             await emitirReceptor(data.id);
             return;
         }
 
-        // --------------------------------------------------------
-        //  RESPUESTA A ALERTA  ->  caidas/receptor/respuesta
-        //  payload: { id, t_respuesta, id_receptor, bateria }  ('id' y 'bateria' son del SENSOR)
-        // --------------------------------------------------------
+        // RESPUESTA A ALERTA -> caidas/receptor/respuesta
         if (topic.includes('receptor') && topic.includes('respuesta')) {
-
-            if (data.id_receptor == null) {
-                console.warn('respuesta sin id_receptor, ignorada');
-                return;
-            }
-
+            if (data.id_receptor == null) { console.warn('respuesta sin id_receptor, ignorada'); return; }
             const upd = await db.query(
-                `UPDATE eventos
-                    SET activa = 0, t_respuesta = $1
+                `UPDATE eventos SET activa = 0, t_respuesta = $1
                   WHERE id = (
                         SELECT id FROM eventos
-                         WHERE activa = 1
-                           AND id_sensor = $2
-                           AND id_receptor = $3
-                         ORDER BY timestamp DESC
-                         LIMIT 1
-                  )
-                  RETURNING *`,
+                         WHERE activa = 1 AND id_sensor = $2 AND id_receptor = $3
+                         ORDER BY timestamp DESC LIMIT 1
+                  ) RETURNING *`,
                 [data.t_respuesta, data.id, data.id_receptor]
             );
-
-            if (upd.rows.length) {
-                io.emit('evento', upd.rows[0]);
-            }
-
+            if (upd.rows.length) io.emit('evento', upd.rows[0]);
             await db.query(
-                `UPDATE sensores SET bateria = $1, timestamp = $2
-                  WHERE id = $3 AND id_receptor = $4`,
+                `UPDATE sensores SET bateria = $1, timestamp = $2 WHERE id = $3 AND id_receptor = $4`,
                 [data.bateria, ahora, data.id, data.id_receptor]
             );
             await emitirSensor(data.id, data.id_receptor);
             return;
         }
 
-        // --------------------------------------------------------
-        //  STATUS SENSOR  ->  caidas/sensor/status
-        //  payload: { id, id_receptor, estado, bateria }
-        // --------------------------------------------------------
+        // STATUS SENSOR -> caidas/sensor/status
         if (topic.includes('sensor') && topic.includes('status')) {
-
             if (data.id_receptor == null) {
                 console.warn('sensor status sin id_receptor -> actualiza el firmware del receptor');
                 return;
             }
-
             await db.query(
                 `INSERT INTO sensores (id, id_receptor, estado, bateria, timestamp, activo)
                  VALUES ($1, $2, $3, $4, $5, 1)
                  ON CONFLICT (id, id_receptor) DO UPDATE
-                   SET estado    = EXCLUDED.estado,
-                       bateria   = EXCLUDED.bateria,
-                       timestamp = EXCLUDED.timestamp,
-                       activo    = 1`,
+                   SET estado = EXCLUDED.estado, bateria = EXCLUDED.bateria,
+                       timestamp = EXCLUDED.timestamp, activo = 1`,
                 [data.id, data.id_receptor, data.estado, data.bateria, ahora]
             );
             await emitirSensor(data.id, data.id_receptor);
 
-            // Crear alerta solo al ENTRAR en estado 2 (sin duplicar si ya hay una abierta)
             if (data.estado === 2) {
                 const ev = await db.query(
                     `INSERT INTO eventos (timestamp, activa, t_respuesta, id_receptor, id_sensor)
                      SELECT $1, 1, NULL, $2, $3
                      WHERE NOT EXISTS (
                         SELECT 1 FROM eventos
-                         WHERE activa = 1
-                           AND id_sensor = $3
-                           AND id_receptor = $2
-                     )
-                     RETURNING *`,
+                         WHERE activa = 1 AND id_sensor = $3 AND id_receptor = $2
+                     ) RETURNING *`,
                     [ahora, data.id_receptor, data.id]
                 );
-                if (ev.rows.length) {
-                    io.emit('evento', ev.rows[0]);
-                }
+                if (ev.rows.length) io.emit('evento', ev.rows[0]);
             }
             return;
         }
@@ -277,7 +225,7 @@ mqttClient.on('message', async (topic, message) => {
 });
 
 // ============================================================
-//  API REST  (protegida: van después de app.use(requireLogin))
+//  API REST  (protegida)
 // ============================================================
 app.get('/api/historial', async (req, res) => {
     try {
@@ -306,6 +254,31 @@ app.get('/api/receptores', async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).send("Error en la base de datos");
+    }
+});
+
+// ------------------------------------------------------------
+//  BORRAR HISTORIAL YA EXPORTADO
+//  Recibe { hasta_id } (el id más alto que se descargó en el CSV).
+//  Borra SOLO eventos RESUELTOS (activa = 0) con id <= hasta_id.
+//  -> Nunca borra una alerta pendiente ni eventos nuevos que
+//     hayan llegado después de exportar.
+// ------------------------------------------------------------
+app.post('/api/borrar-historial', async (req, res) => {
+    try {
+        const hastaId = parseInt(req.body.hasta_id, 10);
+        if (!Number.isInteger(hastaId)) {
+            return res.status(400).json({ error: 'hasta_id inválido' });
+        }
+        const r = await db.query(
+            'DELETE FROM eventos WHERE id <= $1 AND activa = 0 RETURNING id',
+            [hastaId]
+        );
+        console.log(`Historial: borrados ${r.rowCount} eventos (id <= ${hastaId})`);
+        res.json({ borrados: r.rowCount });
+    } catch (err) {
+        console.error('Error borrando historial:', err.message);
+        res.status(500).json({ error: 'Error en la base de datos' });
     }
 });
 
