@@ -85,8 +85,21 @@ const db = new Client({
     ssl: { rejectUnauthorized: false }
 });
 
+async function prepararEsquema() {
+    // columna para "borrado logico" del sensor (se conserva el historial)
+    await db.query(`ALTER TABLE sensores ADD COLUMN IF NOT EXISTS eliminado BOOLEAN DEFAULT false`);
+    // registro de cada vez que se elimina/recambia un sensor (para el historial)
+    await db.query(`CREATE TABLE IF NOT EXISTS reasignaciones (
+        id SERIAL PRIMARY KEY,
+        id_sensor   INTEGER,
+        id_receptor INTEGER,
+        timestamp   TIMESTAMPTZ
+    )`);
+    console.log('Esquema preparado (eliminado + reasignaciones)');
+}
+
 db.connect()
-    .then(() => console.log('DB Conectada'))
+    .then(() => { console.log('DB Conectada'); return prepararEsquema(); })
     .catch(err => console.error('Error DB:', err.message));
 
 // ============================================================
@@ -188,6 +201,30 @@ mqttClient.on('message', async (topic, message) => {
             return;
         }
 
+        // --------------------------------------------------------
+        //  ELIMINAR SENSOR -> caidas/sensor/eliminar
+        //  payload: { id, id_receptor }
+        //  - Registra la reasignacion (para el historial)
+        //  - Borrado logico del sensor (se CONSERVAN los eventos)
+        //  - Avisa al dashboard para quitar la tarjeta
+        // --------------------------------------------------------
+        if (topic.includes('sensor') && topic.includes('eliminar')) {
+            if (data.id_receptor == null) { console.warn('eliminar sin id_receptor'); return; }
+
+            await db.query(
+                `INSERT INTO reasignaciones (id_sensor, id_receptor, timestamp) VALUES ($1, $2, $3)`,
+                [data.id, data.id_receptor, ahora]
+            );
+            await db.query(
+                `UPDATE sensores SET eliminado = true, activo = 0
+                  WHERE id = $1 AND id_receptor = $2`,
+                [data.id, data.id_receptor]
+            );
+            io.emit('sensor_eliminado', { id: data.id, id_receptor: data.id_receptor });
+            console.log(`Sensor ${data.id} (R${data.id_receptor}) eliminado (historial conservado)`);
+            return;
+        }
+
         // STATUS SENSOR -> caidas/sensor/status
         if (topic.includes('sensor') && topic.includes('status')) {
             if (data.id_receptor == null) {
@@ -195,11 +232,11 @@ mqttClient.on('message', async (topic, message) => {
                 return;
             }
             await db.query(
-                `INSERT INTO sensores (id, id_receptor, estado, bateria, timestamp, activo)
-                 VALUES ($1, $2, $3, $4, $5, 1)
+                `INSERT INTO sensores (id, id_receptor, estado, bateria, timestamp, activo, eliminado)
+                 VALUES ($1, $2, $3, $4, $5, 1, false)
                  ON CONFLICT (id, id_receptor) DO UPDATE
                    SET estado = EXCLUDED.estado, bateria = EXCLUDED.bateria,
-                       timestamp = EXCLUDED.timestamp, activo = 1`,
+                       timestamp = EXCLUDED.timestamp, activo = 1, eliminado = false`,
                 [data.id, data.id_receptor, data.estado, data.bateria, ahora]
             );
             await emitirSensor(data.id, data.id_receptor);
@@ -239,7 +276,7 @@ app.get('/api/historial', async (req, res) => {
 
 app.get('/api/sensores', async (req, res) => {
     try {
-        const result = await db.query('SELECT * FROM sensores ORDER BY id_receptor, id');
+        const result = await db.query('SELECT * FROM sensores WHERE eliminado = false ORDER BY id_receptor, id');
         res.json(result.rows);
     } catch (err) {
         console.error(err);
@@ -250,6 +287,16 @@ app.get('/api/sensores', async (req, res) => {
 app.get('/api/receptores', async (req, res) => {
     try {
         const result = await db.query('SELECT * FROM receptores ORDER BY id');
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send("Error en la base de datos");
+    }
+});
+
+app.get('/api/reasignaciones', async (req, res) => {
+    try {
+        const result = await db.query('SELECT * FROM reasignaciones ORDER BY timestamp DESC');
         res.json(result.rows);
     } catch (err) {
         console.error(err);

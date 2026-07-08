@@ -18,6 +18,14 @@ socket.on('sensor', (datos) => {
     }
 });
 
+
+
+socket.on('sensor_eliminado', (datos) => {
+    console.log("Socket sensor_eliminado:", datos);
+    const card = document.getElementById(idTarjetaSensor(datos));
+    if (card) card.remove();
+});
+
 socket.on('receptor', (datos) => {
     console.log("Socket receptor:", datos);
     if (document.getElementById(idTarjetaReceptor(datos))) {
