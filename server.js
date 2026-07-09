@@ -278,7 +278,7 @@ app.post('/api/borrar-historial', async (req, res) => {
         const hastaId = parseInt(req.body.hasta_id, 10);
         if (!Number.isInteger(hastaId)) return res.status(400).json({ error: 'hasta_id inválido' });
         const r = await db.query(
-            'DELETE FROM eventos WHERE id <= $1 AND activa = 0 RETURNING id',
+            'DELETE FROM eventos WHERE id <= $1 RETURNING id',  // borra TODOS (respondidos y no)
             [hastaId]
         );
         console.log(`Historial: borrados ${r.rowCount} eventos (id <= ${hastaId})`);

@@ -431,7 +431,7 @@ async function borrarHistorial() {
         alert('Primero exporta los datos con "Exportar datos".');
         return;
     }
-    if (!confirm('¿Seguro que quieres borrar del historial los registros ya exportados?\nSolo se borran los eventos resueltos que descargaste. Esta acción no se puede deshacer.')) {
+    if (!confirm('¿Seguro que quieres borrar del historial los registros ya exportados?\nSe borrarán TODOS los eventos que descargaste (respondidos y no respondidos). Esta acción no se puede deshacer.')) {
         return;
     }
     try {
