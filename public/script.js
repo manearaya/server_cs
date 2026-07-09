@@ -3,7 +3,7 @@ const socket = io();
 // ─────────────────────────────────────────────────────────────
 //  Helpers de identidad
 // ─────────────────────────────────────────────────────────────
-function idTarjetaSensor(dato)   { return `card-sensor-${dato.id_receptor}-${dato.id}`; }
+function idTarjetaSensor(dato)   { return `card-sensor-${String(dato.mac).replaceAll(':','-')}`; }
 function idTarjetaReceptor(dato) { return `card-receptor-${dato.id}`; }
 
 // ─────────────────────────────────────────────────────────────
@@ -18,14 +18,6 @@ socket.on('sensor', (datos) => {
     }
 });
 
-
-
-socket.on('sensor_eliminado', (datos) => {
-    console.log("Socket sensor_eliminado:", datos);
-    const card = document.getElementById(idTarjetaSensor(datos));
-    if (card) card.remove();
-});
-
 socket.on('receptor', (datos) => {
     console.log("Socket receptor:", datos);
     if (document.getElementById(idTarjetaReceptor(datos))) {
@@ -33,6 +25,12 @@ socket.on('receptor', (datos) => {
     } else {
         cargarReceptores();
     }
+});
+
+socket.on('sensor_eliminado', (datos) => {
+    console.log("Socket sensor_eliminado:", datos);
+    const card = document.getElementById(idTarjetaSensor(datos));  // datos trae { mac }
+    if (card) card.remove();
 });
 
 socket.on('evento', (datos) => {
@@ -63,7 +61,8 @@ function htmlInteriorSensor(dato) {
 
     return `
         <h3 class="text-lg font-bold text-gray-900 mb-1">Sensor ${dato.id}</h3>
-        <p class="text-xs text-gray-400 mb-2">Receptor ${dato.id_receptor}</p>
+        <p class="text-xs text-gray-400">Receptor ${dato.id_receptor}</p>
+        <p class="text-[10px] text-gray-400 font-mono mb-2 break-all">${dato.mac ?? ''}</p>
         <span class="text-lg font-medium ${dato.activo === 0 ? 'text-red-900 font-bold' : 'text-gray-900 font-bold'}">
             ${nombreActivo}
         </span>
@@ -124,17 +123,28 @@ function clasesTarjetaReceptor(dato) {
 //  Actualizar una tarjeta existente
 // ─────────────────────────────────────────────────────────────
 function actualizarTarjetaSensor(dato) {
+    const lista = document.getElementById('lista-sensores');
     const card = document.getElementById(idTarjetaSensor(dato));
     if (!card) return;
+    const nuevaFirma = `${dato.estado}|${dato.bateria}|${dato.activo}`;
+    const cambio = card.dataset.sig !== nuevaFirma;   // ¿cambió algún dato?
     card.className = `${clasesTarjetaSensor(dato)} p-6 rounded-lg shadow-sm border border-gray-200`;
     card.innerHTML = htmlInteriorSensor(dato);
+    card.dataset.sig = nuevaFirma;
+    // Si hubo un cambio real (no un simple heartbeat), sube la tarjeta al tope
+    if (cambio && lista && lista.firstChild !== card) lista.prepend(card);
 }
 
 function actualizarTarjetaReceptor(dato) {
+    const lista = document.getElementById('lista-receptores');
     const card = document.getElementById(idTarjetaReceptor(dato));
     if (!card) return;
+    const nuevaFirma = `${dato.bateria}|${dato.activo}`;
+    const cambio = card.dataset.sig !== nuevaFirma;
     card.className = `${clasesTarjetaReceptor(dato)} p-6 rounded-lg shadow-sm border border-gray-200`;
     card.innerHTML = htmlInteriorReceptor(dato);
+    card.dataset.sig = nuevaFirma;
+    if (cambio && lista && lista.firstChild !== card) lista.prepend(card);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -151,15 +161,8 @@ async function cargarSensores() {
 }
 
 function poblarSensores(listaSensores) {
-    const prioridadEstado = { 2: 1, 1: 2, 3: 3 };
-
-    listaSensores.sort((a, b) => {
-        if (prioridadEstado[a.estado] !== prioridadEstado[b.estado])
-            return prioridadEstado[a.estado] - prioridadEstado[b.estado];
-        if (a.activo !== b.activo)
-            return a.activo - b.activo;
-        return a.bateria - b.bateria;
-    });
+    // Orden inicial: el más recientemente actualizado arriba
+    listaSensores.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
     const lista = document.getElementById('lista-sensores');
     lista.innerHTML = '';
@@ -169,6 +172,7 @@ function poblarSensores(listaSensores) {
         card.id        = idTarjetaSensor(dato);
         card.className = `${clasesTarjetaSensor(dato)} p-6 rounded-lg shadow-sm border border-gray-200`;
         card.innerHTML = htmlInteriorSensor(dato);
+        card.dataset.sig = `${dato.estado}|${dato.bateria}|${dato.activo}`;
         lista.appendChild(card);
     });
 }
@@ -184,10 +188,8 @@ async function cargarReceptores() {
 }
 
 function poblarReceptores(listaReceptores) {
-    listaReceptores.sort((a, b) => {
-        if (a.activo !== b.activo) return a.activo - b.activo;
-        return a.bateria - b.bateria;
-    });
+    // Orden inicial: el más recientemente actualizado arriba
+    listaReceptores.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
     const lista = document.getElementById('lista-receptores');
     lista.innerHTML = '';
@@ -197,6 +199,7 @@ function poblarReceptores(listaReceptores) {
         card.id        = idTarjetaReceptor(dato);
         card.className = `${clasesTarjetaReceptor(dato)} p-6 rounded-lg shadow-sm border border-gray-200`;
         card.innerHTML = htmlInteriorReceptor(dato);
+        card.dataset.sig = `${dato.bateria}|${dato.activo}`;
         lista.appendChild(card);
     });
 }
@@ -236,6 +239,7 @@ function poblarHistorial(historial) {
                 <span class="text-base font-semibold text-gray-800">
                     Evento #${dato.id}${dato.id_sensor != null ? ` · Sensor ${dato.id_sensor} (R${dato.id_receptor})` : ''}
                 </span>
+                ${dato.mac_sensor ? `<span class="text-[10px] font-mono text-gray-400 break-all">${dato.mac_sensor}</span>` : ''}
             </div>
             <div class="flex items-center gap-4">
                 <span class="text-xs font-medium text-gray-600">

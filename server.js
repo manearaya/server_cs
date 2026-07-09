@@ -10,44 +10,31 @@ const { Server } = require('socket.io');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-    cors: {
-        origin: "*",
-        methods: ["GET", "POST"]
-    }
+    cors: { origin: "*", methods: ["GET", "POST"] }
 });
 
 // ============================================================
-//  LOGIN / SESIÓN
-//  Variables de entorno: DASHBOARD_PASSWORD, SESSION_SECRET
+//  LOGIN / SESIÓN   (variables: DASHBOARD_PASSWORD, SESSION_SECRET)
 // ============================================================
-app.set('trust proxy', 1);   // Railway va detrás de un proxy (cookie 'secure')
+app.set('trust proxy', 1);
 
 const sessionMiddleware = session({
     secret: process.env.SESSION_SECRET || 'cambia-esto-por-un-secreto-largo',
     resave: false,
     saveUninitialized: false,
-    cookie: {
-        secure: true,
-        httpOnly: true,
-        maxAge: 1000 * 60 * 60 * 8   // 8 horas
-    }
+    cookie: { secure: true, httpOnly: true, maxAge: 1000 * 60 * 60 * 8 }
 });
 
-app.use(express.urlencoded({ extended: true }));  // formulario de login
-app.use(express.json());                          // cuerpos JSON (ej. borrar historial)
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 app.use(sessionMiddleware);
 
-// Middleware: exige estar logueado
 function requireLogin(req, res, next) {
     if (req.session && req.session.autenticado) return next();
     return res.redirect('/login');
 }
 
-// --- Rutas de login (SIN sesión) ---
-app.get('/login', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'login.html'));
-});
-
+app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
 app.post('/login', (req, res) => {
     if (req.body.password === process.env.DASHBOARD_PASSWORD) {
         req.session.autenticado = true;
@@ -55,30 +42,23 @@ app.post('/login', (req, res) => {
     }
     res.redirect('/login?error=1');
 });
+app.get('/logout', (req, res) => req.session.destroy(() => res.redirect('/login')));
 
-app.get('/logout', (req, res) => {
-    req.session.destroy(() => res.redirect('/login'));
-});
-
-// --- De aquí en adelante TODO requiere login ---
 app.use(requireLogin);
 app.use(express.static(path.join(__dirname, 'public')));
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-// --- Socket.IO protegido con la misma sesión ---
 io.engine.use(sessionMiddleware);
 io.use((socket, next) => {
-    if (socket.request.session && socket.request.session.autenticado) {
-        return next();
-    }
+    if (socket.request.session && socket.request.session.autenticado) return next();
     next(new Error('no autorizado'));
 });
 
 // ============================================================
-//  CONEXIÓN DB
+//  CONEXIÓN DB + ESQUEMA
+//  IDENTIDAD DEL SENSOR = MAC. El par (id, id_receptor) es solo
+//  una etiqueta que puede reusarse. Los eventos guardan mac_sensor
+//  para trazar qué sensor FÍSICO generó cada evento.
 // ============================================================
 const db = new Client({
     connectionString: process.env.DATABASE_URL,
@@ -86,16 +66,27 @@ const db = new Client({
 });
 
 async function prepararEsquema() {
-    // columna para "borrado logico" del sensor (se conserva el historial)
-    await db.query(`ALTER TABLE sensores ADD COLUMN IF NOT EXISTS eliminado BOOLEAN DEFAULT false`);
-    // registro de cada vez que se elimina/recambia un sensor (para el historial)
+    // sensores identificados por MAC (si la tabla no existe aún, se crea así)
+    await db.query(`CREATE TABLE IF NOT EXISTS sensores (
+        mac         TEXT PRIMARY KEY,
+        id          INTEGER,
+        id_receptor INTEGER,
+        estado      INTEGER,
+        bateria     INTEGER,
+        timestamp   TIMESTAMPTZ,
+        activo      INTEGER DEFAULT 1
+    )`);
+    // historial: agrega la mac del sensor (no borra datos existentes)
+    await db.query(`ALTER TABLE eventos ADD COLUMN IF NOT EXISTS mac_sensor TEXT`);
+    // registro de reasignaciones (cuándo se elimina/recambia un sensor)
     await db.query(`CREATE TABLE IF NOT EXISTS reasignaciones (
-        id SERIAL PRIMARY KEY,
+        id          SERIAL PRIMARY KEY,
+        mac_sensor  TEXT,
         id_sensor   INTEGER,
         id_receptor INTEGER,
         timestamp   TIMESTAMPTZ
     )`);
-    console.log('Esquema preparado (eliminado + reasignaciones)');
+    console.log('Esquema preparado (sensores por MAC + mac_sensor en eventos)');
 }
 
 db.connect()
@@ -119,14 +110,10 @@ mqttClient.on('connect', () => {
 // ============================================================
 //  HELPERS DE EMISIÓN
 // ============================================================
-async function emitirSensor(id, id_receptor) {
-    const r = await db.query(
-        'SELECT * FROM sensores WHERE id = $1 AND id_receptor = $2',
-        [id, id_receptor]
-    );
+async function emitirSensor(mac) {
+    const r = await db.query('SELECT * FROM sensores WHERE mac = $1', [mac]);
     if (r.rows.length) io.emit('sensor', r.rows[0]);
 }
-
 async function emitirReceptor(id) {
     const r = await db.query('SELECT * FROM receptores WHERE id = $1', [id]);
     if (r.rows.length) io.emit('receptor', r.rows[0]);
@@ -136,14 +123,9 @@ async function emitirReceptor(id) {
 //  MENSAJES MQTT
 // ============================================================
 mqttClient.on('message', async (topic, message) => {
-
     let data;
-    try {
-        data = JSON.parse(message.toString());
-    } catch (e) {
-        console.error('Mensaje no-JSON en', topic, '->', message.toString());
-        return;
-    }
+    try { data = JSON.parse(message.toString()); }
+    catch (e) { console.error('Mensaje no-JSON en', topic, '->', message.toString()); return; }
 
     const ahora = new Date().toISOString();
 
@@ -181,75 +163,73 @@ mqttClient.on('message', async (topic, message) => {
         }
 
         // RESPUESTA A ALERTA -> caidas/receptor/respuesta
+        // payload: { id, t_respuesta, id_receptor, bateria, mac }  (mac = del SENSOR)
         if (topic.includes('receptor') && topic.includes('respuesta')) {
-            if (data.id_receptor == null) { console.warn('respuesta sin id_receptor, ignorada'); return; }
+            if (data.mac == null) { console.warn('respuesta sin mac -> actualiza el firmware del receptor'); return; }
             const upd = await db.query(
                 `UPDATE eventos SET activa = 0, t_respuesta = $1
                   WHERE id = (
                         SELECT id FROM eventos
-                         WHERE activa = 1 AND id_sensor = $2 AND id_receptor = $3
+                         WHERE activa = 1 AND mac_sensor = $2
                          ORDER BY timestamp DESC LIMIT 1
                   ) RETURNING *`,
-                [data.t_respuesta, data.id, data.id_receptor]
+                [data.t_respuesta, data.mac]
             );
             if (upd.rows.length) io.emit('evento', upd.rows[0]);
             await db.query(
-                `UPDATE sensores SET bateria = $1, timestamp = $2 WHERE id = $3 AND id_receptor = $4`,
-                [data.bateria, ahora, data.id, data.id_receptor]
+                `UPDATE sensores SET bateria = $1, timestamp = $2 WHERE mac = $3`,
+                [data.bateria, ahora, data.mac]
             );
-            await emitirSensor(data.id, data.id_receptor);
+            await emitirSensor(data.mac);
             return;
         }
 
         // --------------------------------------------------------
         //  ELIMINAR SENSOR -> caidas/sensor/eliminar
-        //  payload: { id, id_receptor }
-        //  - Registra la reasignacion (para el historial)
-        //  - Borrado logico del sensor (se CONSERVAN los eventos)
-        //  - Avisa al dashboard para quitar la tarjeta
+        //  payload: { id, id_receptor, mac }
+        //  - Registra la reasignación (para trazabilidad).
+        //  - Borra la fila del sensor (identificado por MAC). Los EVENTOS
+        //    se conservan (no dependen de la tabla sensores).
         // --------------------------------------------------------
         if (topic.includes('sensor') && topic.includes('eliminar')) {
-            if (data.id_receptor == null) { console.warn('eliminar sin id_receptor'); return; }
-
+            if (data.mac == null) { console.warn('eliminar sin mac -> actualiza el firmware del receptor'); return; }
             await db.query(
-                `INSERT INTO reasignaciones (id_sensor, id_receptor, timestamp) VALUES ($1, $2, $3)`,
-                [data.id, data.id_receptor, ahora]
+                `INSERT INTO reasignaciones (mac_sensor, id_sensor, id_receptor, timestamp)
+                 VALUES ($1, $2, $3, $4)`,
+                [data.mac, data.id, data.id_receptor, ahora]
             );
-            await db.query(
-                `UPDATE sensores SET eliminado = true, activo = 0
-                  WHERE id = $1 AND id_receptor = $2`,
-                [data.id, data.id_receptor]
-            );
-            io.emit('sensor_eliminado', { id: data.id, id_receptor: data.id_receptor });
-            console.log(`Sensor ${data.id} (R${data.id_receptor}) eliminado (historial conservado)`);
+            await db.query(`DELETE FROM sensores WHERE mac = $1`, [data.mac]);
+            io.emit('sensor_eliminado', { mac: data.mac });
+            console.log(`Sensor MAC ${data.mac} (era id ${data.id}) eliminado; historial conservado`);
             return;
         }
 
         // STATUS SENSOR -> caidas/sensor/status
+        // payload: { id, id_receptor, estado, bateria, mac }
         if (topic.includes('sensor') && topic.includes('status')) {
-            if (data.id_receptor == null) {
-                console.warn('sensor status sin id_receptor -> actualiza el firmware del receptor');
-                return;
-            }
-            await db.query(
-                `INSERT INTO sensores (id, id_receptor, estado, bateria, timestamp, activo, eliminado)
-                 VALUES ($1, $2, $3, $4, $5, 1, false)
-                 ON CONFLICT (id, id_receptor) DO UPDATE
-                   SET estado = EXCLUDED.estado, bateria = EXCLUDED.bateria,
-                       timestamp = EXCLUDED.timestamp, activo = 1, eliminado = false`,
-                [data.id, data.id_receptor, data.estado, data.bateria, ahora]
-            );
-            await emitirSensor(data.id, data.id_receptor);
+            if (data.mac == null) { console.warn('sensor status sin mac -> actualiza el firmware del receptor'); return; }
 
+            // UPSERT por MAC: una MAC nueva = fila nueva (sensor físico distinto)
+            await db.query(
+                `INSERT INTO sensores (mac, id, id_receptor, estado, bateria, timestamp, activo)
+                 VALUES ($1, $2, $3, $4, $5, $6, 1)
+                 ON CONFLICT (mac) DO UPDATE
+                   SET id = EXCLUDED.id, id_receptor = EXCLUDED.id_receptor,
+                       estado = EXCLUDED.estado, bateria = EXCLUDED.bateria,
+                       timestamp = EXCLUDED.timestamp, activo = 1`,
+                [data.mac, data.id, data.id_receptor, data.estado, data.bateria, ahora]
+            );
+            await emitirSensor(data.mac);
+
+            // Alerta al ENTRAR en estado 2 (sin duplicar), identificada por MAC
             if (data.estado === 2) {
                 const ev = await db.query(
-                    `INSERT INTO eventos (timestamp, activa, t_respuesta, id_receptor, id_sensor)
-                     SELECT $1, 1, NULL, $2, $3
+                    `INSERT INTO eventos (timestamp, activa, t_respuesta, id_receptor, id_sensor, mac_sensor)
+                     SELECT $1, 1, NULL, $2, $3, $4
                      WHERE NOT EXISTS (
-                        SELECT 1 FROM eventos
-                         WHERE activa = 1 AND id_sensor = $3 AND id_receptor = $2
+                        SELECT 1 FROM eventos WHERE activa = 1 AND mac_sensor = $4
                      ) RETURNING *`,
-                    [ahora, data.id_receptor, data.id]
+                    [ahora, data.id_receptor, data.id, data.mac]
                 );
                 if (ev.rows.length) io.emit('evento', ev.rows[0]);
             }
@@ -268,55 +248,35 @@ app.get('/api/historial', async (req, res) => {
     try {
         const result = await db.query('SELECT * FROM eventos ORDER BY timestamp DESC');
         res.json(result.rows);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send("Error en la base de datos");
-    }
+    } catch (err) { console.error(err); res.status(500).send("Error en la base de datos"); }
 });
 
 app.get('/api/sensores', async (req, res) => {
     try {
-        const result = await db.query('SELECT * FROM sensores WHERE eliminado = false ORDER BY id_receptor, id');
+        const result = await db.query('SELECT * FROM sensores ORDER BY id_receptor, id');
         res.json(result.rows);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send("Error en la base de datos");
-    }
+    } catch (err) { console.error(err); res.status(500).send("Error en la base de datos"); }
 });
 
 app.get('/api/receptores', async (req, res) => {
     try {
         const result = await db.query('SELECT * FROM receptores ORDER BY id');
         res.json(result.rows);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send("Error en la base de datos");
-    }
+    } catch (err) { console.error(err); res.status(500).send("Error en la base de datos"); }
 });
 
 app.get('/api/reasignaciones', async (req, res) => {
     try {
         const result = await db.query('SELECT * FROM reasignaciones ORDER BY timestamp DESC');
         res.json(result.rows);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send("Error en la base de datos");
-    }
+    } catch (err) { console.error(err); res.status(500).send("Error en la base de datos"); }
 });
 
-// ------------------------------------------------------------
-//  BORRAR HISTORIAL YA EXPORTADO
-//  Recibe { hasta_id } (el id más alto que se descargó en el CSV).
-//  Borra SOLO eventos RESUELTOS (activa = 0) con id <= hasta_id.
-//  -> Nunca borra una alerta pendiente ni eventos nuevos que
-//     hayan llegado después de exportar.
-// ------------------------------------------------------------
+// BORRAR HISTORIAL YA EXPORTADO (solo eventos resueltos, hasta el id exportado)
 app.post('/api/borrar-historial', async (req, res) => {
     try {
         const hastaId = parseInt(req.body.hasta_id, 10);
-        if (!Number.isInteger(hastaId)) {
-            return res.status(400).json({ error: 'hasta_id inválido' });
-        }
+        if (!Number.isInteger(hastaId)) return res.status(400).json({ error: 'hasta_id inválido' });
         const r = await db.query(
             'DELETE FROM eventos WHERE id <= $1 AND activa = 0 RETURNING id',
             [hastaId]
@@ -331,6 +291,4 @@ app.post('/api/borrar-historial', async (req, res) => {
 
 // ============================================================
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, '0.0.0.0', () => {
-    console.log(`Servidor corriendo en puerto ${PORT}`);
-});
+server.listen(PORT, '0.0.0.0', () => console.log(`Servidor corriendo en puerto ${PORT}`));
